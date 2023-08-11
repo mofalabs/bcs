@@ -1,39 +1,86 @@
 /// BCS implementation https://github.com/diem/bcs
 
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:bcs/bs58.dart';
 import 'package:bcs/consts.dart';
 import 'package:bcs/hex.dart';
+import 'package:flutter/foundation.dart';
 
+const SUI_ADDRESS_LENGTH = 32;
 
-/// Class used for reading BCS data chunk by chunk. Meant to be used
-/// by some wrapper, which will make sure that data is valid and is
-/// matching the desired format.
-///
-///```dart
-/// // data for this example is:
-/// // { a: u8, b: u32, c: bool, d: u64 }
-/// final reader = BcsReader("647f1a060001ffffe7890423c78a050102030405");
-/// final field1 = reader.read8();
-/// final field2 = reader.read32();
-/// final field3 = reader.read8() == '1'; // bool
-/// final field4 = reader.read64();
-///```
-///
-/// Reading vectors is another deal in bcs. To read a vector, you first need to read
-/// its length using [readULEB]. Here's an example:
-/// 
-///```dart
-/// // data encoded: { field: [1, 2, 3, 4, 5] }
-/// final reader = BcsReader("050102030405");
-/// final vec_length = reader.readULEB();
-/// final elements = [];
-/// for (int i = 0; i < vec_length; i++) {
-///   elements.push(reader.read8());
-/// }
-/// print(elements); // [1,2,3,4,5]
-/// ```
+// Uint8List toLittleEndian(BigInt bigint, int size) {
+//   final result = Uint8List(size);
+//   int i = 0;
+//   while (bigint > 0) {
+//     result[i] = (bigint % BigInt(256));
+//     bigint = bigint / BigInt(256);
+//     i += 1;
+//   }
+//   return result;
+// }
+
+final toB58 = (Uint8List buffer) => base58Encode(buffer);
+final fromB58 = (String str) => base58Decode(str);
+
+final toB64 = (Uint8List buffer) => base64Encode(buffer);
+final fromB64 = (String str) => base64Decode(str);
+
+final toHEX = (Uint8List buffer) => Hex.encode(buffer);
+final fromHEX = (String str) => Hex.decode(str);
+
+/**
+ * Supported encodings.
+ * Used in `Reader.toString()` as well as in `decodeStr` and `encodeStr` functions.
+ */
+enum Encoding {
+  base58, base64, hex
+}
+
+/**
+ * Allows for array definitions for names.
+ * @example
+ * ```
+ * bcs.registerStructType(['vector', BCS.STRING], ...);
+ * // equals
+ * bcs.registerStructType('vector<string>', ...);
+ * ```
+ */
+// export type TypeName = string | [string, ...(TypeName | string)[]];
+typedef TypeName = dynamic;
+
+/**
+ * Class used for reading BCS data chunk by chunk. Meant to be used
+ * by some wrapper, which will make sure that data is valid and is
+ * matching the desired format.
+ *
+ * @example
+ * // data for this example is:
+ * // { a: u8, b: u32, c: bool, d: u64 }
+ *
+ * let reader = new BcsReader("647f1a060001ffffe7890423c78a050102030405");
+ * let field1 = reader.read8();
+ * let field2 = reader.read32();
+ * let field3 = reader.read8() === '1'; // bool
+ * let field4 = reader.read64();
+ * // ....
+ *
+ * Reading vectors is another deal in bcs. To read a vector, you first need to read
+ * its length using {@link readULEB}. Here's an example:
+ * @example
+ * // data encoded: { field: [1, 2, 3, 4, 5] }
+ * let reader = new BcsReader("050102030405");
+ * let vec_length = reader.readULEB();
+ * let elements = [];
+ * for (let i = 0; i < vec_length; i++) {
+ *   elements.push(reader.read8());
+ * }
+ * console.log(elements); // [1,2,3,4,5]
+ *
+ * @param {String} data HEX-encoded data (serialized BCS)
+ */
 class BcsReader {
   late ByteData _dataView;
   int _bytePosition = 0;
@@ -87,6 +134,16 @@ class BcsReader {
     return BigInt.parse(result, radix: 16);
   }
 
+  /// Read U256 value from the buffer and shift cursor by 32.
+  BigInt read256() {
+    final value1 = read128();
+    final value2 = read128();
+    final result = value2.toRadixString(16) + value1.toRadixString(16).padLeft(16, '0');
+
+    return BigInt.parse(result, radix: 16);
+  }
+
+
   /// Read `num` number of bytes from the buffer and shift cursor by `num`.
   Uint8List readBytes(int num) {
     int start = _bytePosition + _dataView.offsetInBytes;
@@ -102,11 +159,11 @@ class BcsReader {
   int readULEB() {
     int start = _bytePosition + _dataView.offsetInBytes;
     final buffer = Uint8List.view(_dataView.buffer, start);
-    List<int> data = ulebDecode(buffer);
+    final (value, length) = ulebDecode(buffer);
 
-    shift(data[1]);
+    shift(length);
 
-    return data[0];
+    return value;
   }
 
   /// Read a BCS vector: read a length and then apply function `cb` X times
@@ -123,26 +180,61 @@ class BcsReader {
   }
 }
 
+/**
+ * Class used to write BCS data into a buffer. Initializer requires
+ * some size of a buffer to init; default value for this buffer is 1KB.
+ *
+ * Most methods are chainable, so it is possible to write them in one go.
+ *
+ * @example
+ * let serialized = new BcsWriter()
+ *   .write8(10)
+ *   .write32(1000000)
+ *   .write64(10000001000000)
+ *   .hex();
+ */
 
-/// Class used to write BCS data into a buffer. Initializer requires
-/// some size of a buffer to init; default value for this buffer is 1KB.
-///
-/// Most methods are chainable, so it is possible to write them in one go.
-///
-/// ```dart
-/// final serialized = BcsWriter()
-///   .write8(10)
-///   .write32(1000000)
-///   .write64(10000001000000)
-///   .hex();
-/// ```
-class BcsWriter with Iterator<int> {
+class BcsWriterOptions {
+  /** The initial size (in bytes) of the buffer tht will be allocated */
+  int? size;
+  /** The maximum size (in bytes) that the buffer is allowed to grow to */
+  int? maxSize;
+  /** The amount of bytes that will be allocated whenever additional memory is required */
+  int? allocateSize;
+
+  BcsWriterOptions({this.size, this.maxSize, this.allocateSize});
+}
+
+class BcsWriter {
   late ByteData _dataView;
   int _bytePosition = 0;
 
-  /// [size=1024] Size of the buffer to reserve for serialization.
-  BcsWriter([int size = 1024]) {
+  late int _size;
+  late int _maxSize;
+  late int _allocateSize;
+
+  BcsWriter({int size = 4096, int? maxSize, int allocateSize = 1024}) {
+    _size = size;
+    _maxSize = maxSize ?? size;
+    _allocateSize = allocateSize;
     _dataView = ByteData.sublistView(Uint8List(size));
+  }
+
+  ensureSizeOrGrow(int bytes) {
+    final requiredSize = _bytePosition + bytes;
+    if (requiredSize > _size) {
+      final nextSize = min(_maxSize, _size + _allocateSize);
+      if (requiredSize > nextSize) {
+        throw ArgumentError(
+          "Attempting to serialize to BCS, but buffer does not have enough size. Allocated size: ${_size}, Max size: ${_maxSize}, Required size: ${requiredSize}"
+        );
+      }
+
+      _size = nextSize;
+      final nextBuffer = Uint8List(_size);
+      nextBuffer.setAll(0, _dataView.buffer.asUint8List());
+      _dataView = ByteData.view(nextBuffer.buffer);
+    }
   }
 
   /// Shift current cursor position by [bytes].
@@ -153,18 +245,21 @@ class BcsWriter with Iterator<int> {
 
   /// Write a U8 value into a buffer and shift cursor position by 1.
   BcsWriter write8(int value) {
+    ensureSizeOrGrow(1);
     _dataView.setUint8(_bytePosition, value);
     return shift(1);
   }
 
   /// Write a U16 value into a buffer and shift cursor position by 2.
   BcsWriter write16(int value) {
+    ensureSizeOrGrow(2);
     _dataView.setUint16(_bytePosition, value, Endian.little);
     return shift(2);
   }
 
   /// Write a U32 value into a buffer and shift cursor position by 4.
   BcsWriter write32(int value) {
+    ensureSizeOrGrow(4);
     _dataView.setUint32(_bytePosition, value, Endian.little);
     return shift(4);
   }
@@ -193,6 +288,18 @@ class BcsWriter with Iterator<int> {
     return this;
   }
 
+  /// Write a U256 value into a buffer and shift cursor position by 32.
+  BcsWriter write256(BigInt value) {
+    final low = value & MAX_U128_BIG_INT;
+    final high = value >> 128;
+
+    // write little endian number
+    write128(low);
+    write128(high);
+
+    return this;
+  }
+
   /// Write a ULEB value into a buffer and shift cursor position by number of bytes
   /// written.
   BcsWriter writeULEB(int value) {
@@ -206,7 +313,7 @@ class BcsWriter with Iterator<int> {
   /// Write a vector into a buffer by first writing the vector length and then calling
   /// a callback on each passed value.
   BcsWriter writeVec(
-    dynamic vector,
+    List<dynamic> vector,
     dynamic Function(BcsWriter writer, dynamic el, int i, int len) cb
   ) {
     writeULEB(vector.length);
@@ -216,35 +323,25 @@ class BcsWriter with Iterator<int> {
     return this;
   }
 
+  /**
+   * Adds support for iterations over the object.
+   * @returns {Uint8Array}
+   */
+  // *[Symbol.iterator](): Iterator<number, Iterable<number>> {
+  //   for (let i = 0; i < _bytePosition; i++) {
+  //     yield _dataView.getUint8(i);
+  //   }
+  //   return this.toBytes();
+  // }
+
   /// Get underlying buffer taking only value bytes (in case initial buffer size was bigger).
   Uint8List toBytes() {
     return Uint8List.sublistView(_dataView, 0, _bytePosition);
   }
 
   /// Represent data as 'hex' or 'base64'
-  String toStringEncoding(String encoding) {
+  String encode(Encoding encoding) {
     return encodeStr(toBytes(), encoding);
-  }
-
-  String toHexString() {
-    return encodeStr(toBytes(), 'hex');
-  }
-
-  String toBase64String() {
-    return encodeStr(toBytes(), 'base64');
-  }
-
-  @override
-  int get current => _dataView.getUint8(_bytePosition);
-
-  @override
-  bool moveNext() {
-    if (_bytePosition >= _dataView.buffer.lengthInBytes) {
-      return false;
-    }
-
-    shift(1);
-    return false;
   }
 }
 
@@ -269,7 +366,7 @@ List<int> ulebEncode(int num) {
 }
 
 // Helper utility: decode ULEB as an array of numbers.
-List<int> ulebDecode(Uint8List arr) {
+(int, int) ulebDecode(Uint8List arr) {
   int total = 0;
   int shift = 0;
   int len = 0;
@@ -284,408 +381,1026 @@ List<int> ulebDecode(Uint8List arr) {
     shift += 7;
   }
 
-  // [value, length]
-  return [total, len];
+  return (total, len);
 }
 
 /// Set of methods that allows data encoding/decoding as standalone
 /// BCS value or a part of a composed structure/vector.
 mixin TypeInterface {
-  BcsWriter encode(dynamic data, int size);
-  dynamic decode(Uint8List data);
+  BcsWriter encode(dynamic data, BcsWriterOptions? options, List<TypeName> typeParams);
+  dynamic decode(Uint8List data, List<TypeName> typeParams);
 
-  BcsWriter _encodeRaw(BcsWriter writer, dynamic data);
-  dynamic _decodeRaw(BcsReader reader);
+  BcsWriter _encodeRaw(BcsWriter writer, dynamic data, List<TypeName> typeParams, Map<String, TypeName> typeMap);
+  dynamic _decodeRaw(BcsReader reader, List<TypeName> typeParams, Map<String, TypeName> typeMap);
 }
 
-typedef BcsWriter EncodeCb(BcsWriter writer, dynamic data);
-typedef dynamic DecodeCb(BcsReader reader);
+typedef BcsWriter EncodeCb(BcsWriter writer, dynamic data, List<TypeName> typeParams, Map<String, TypeName> typeMap);
+typedef dynamic DecodeCb(BcsReader reader, List<TypeName> typeParams, Map<String, TypeName> typeMap);
 typedef bool ValidateCb(dynamic data);
 
 class TypeEncodeDecode with TypeInterface {
-  final String name;
+  final BCS bcs;
+  final dynamic name;
   final EncodeCb encodeCb;
   final DecodeCb decodeCb;
   final ValidateCb validateCb;
 
-  TypeEncodeDecode(this.name, this.encodeCb, this.decodeCb, this.validateCb);
+  TypeEncodeDecode(this.bcs, this.name, this.encodeCb, this.decodeCb, this.validateCb);
 
   @override
-  BcsWriter encode(data, [int size = 1024]) {
-    return _encodeRaw(BcsWriter(size), data);
+  BcsWriter encode(data, options, typeParams) {
+    final (name, generics) = bcs.parseTypeName(this.name);
+
+    final typeMap = Map<String, dynamic>();
+    for (var i = 0; i < generics.length; i++) {
+      typeMap[generics[i]] = typeParams[i];
+    }
+
+    final bcsWriter = BcsWriter(
+      size: options?.size ?? 4096, 
+      maxSize: options?.maxSize, 
+      allocateSize: options?.allocateSize ?? 1024);
+    return _encodeRaw(bcsWriter, data, typeParams, typeMap);
   }
 
   @override
-  dynamic decode(data) {
-    return _decodeRaw(BcsReader(data));
+  dynamic decode(data, typeParams) {
+    final (name, generics) = bcs.parseTypeName(this.name);
+
+    final typeMap = Map<String, dynamic>();
+    for (var i = 0; i < generics.length; i++) {
+      typeMap[generics[i]] = typeParams[i];
+    }
+
+    return _decodeRaw(BcsReader(data), typeParams, typeMap);
   }
 
   // these methods should always be used with caution as they require pre-defined
   // reader and writer and mainly exist to allow multi-field (de)serialization;
   @override
-  BcsWriter _encodeRaw(writer, data) {
+  BcsWriter _encodeRaw(writer, data, typeParams, typeMap) {
     if (validateCb(data)) {
-      return encodeCb(writer, data);
+      return encodeCb(writer, data, typeParams, typeMap);
     } else {
       throw ArgumentError("Validation failed for type $name, data: $data");
     }
   }
 
   @override
-  dynamic _decodeRaw(reader) {
-    return decodeCb(reader);
+  dynamic _decodeRaw(reader, typeParams, typeMap) {
+    return decodeCb(reader, typeParams, typeMap);
   }
 
 }
 
- /// BCS implementation for Move types and few additional built-ins.
- class BCS {
+/**
+ * Struct type definition. Used as input format in BcsConfig.types
+ * as well as an argument type for `bcs.registerStructType`.
+ */
+// export type StructTypeDefinition = {
+//   [key: string]: TypeName | StructTypeDefinition;
+// };
+
+typedef StructTypeDefinition = Map<String, dynamic>;
+
+/**
+ * Enum type definition. Used as input format in BcsConfig.types
+ * as well as an argument type for `bcs.registerEnumType`.
+ *
+ * Value can be either `string` when invariant has a type or `null`
+ * when invariant is empty.
+ *
+ * @example
+ * bcs.registerEnumType('Option<T>', {
+ *   some: 'T',
+ *   none: null
+ * });
+ */
+// export type EnumTypeDefinition = {
+//   [key: string]: TypeName | StructTypeDefinition | null;
+// };
+
+typedef EnumTypeDefinition = Map<String, dynamic>;
+
+class BcsConfigTypes {
+  Map<String, StructTypeDefinition>? structs;
+  Map<String, EnumTypeDefinition>? enums;
+  Map<String, String>? aliases;
+
+  BcsConfigTypes({this.structs, this.enums, this.aliases});
+}
+
+/**
+ * Configuration that is passed into BCS constructor.
+ */
+class BcsConfig {
+  /**
+   * Defines type name for the vector / array type.
+   * In Move: `vector<T>` or `vector`.
+   */
+  String vectorType;
+  /**
+   * Address length. Varies depending on a platform and
+   * has to be specified for the `address` type.
+   */
+  int addressLength;
+
+  /**
+   * Custom encoding for address. Supported values are
+   * either 'hex' or 'base64'.
+   */
+  Encoding? addressEncoding;
+  /**
+   * Opening and closing symbol for type parameters. Can be
+   * any pair of symbols (eg `['(', ')']`); default value follows
+   * Rust and Move: `<` and `>`.
+   */
+  (String, String)? genericSeparators;
+  /**
+   * Type definitions for the BCS. This field allows spawning
+   * BCS instance from JSON or another prepared configuration.
+   * Optional.
+   */
+  // types?: {
+  //   structs?: { [key: string]: StructTypeDefinition };
+  //   enums?: { [key: string]: EnumTypeDefinition };
+  //   aliases?: { [key: string]: string };
+  // };
+  BcsConfigTypes? types;
+
+  /**
+   * Whether to auto-register primitive types on launch.
+   */
+  bool? withPrimitives;
+
+  BcsConfig({
+    required this.vectorType,
+    required this.addressLength,
+    this.addressEncoding,
+    this.genericSeparators,
+    this.types,
+    this.withPrimitives
+  });
+}
+
+/**
+ * BCS implementation for Move types and few additional built-ins.
+ */
+class BCS {
   // Prefefined types constants
   static const String U8 = 'u8';
+  static const String U16 = 'u16';
   static const String U32 = 'u32';
   static const String U64 = 'u64';
   static const String U128 = 'u128';
+  static const String U256 = 'u256';
   static const String BOOL = 'bool';
   static const String VECTOR = 'vector';
   static const String ADDRESS = 'address';
   static const String STRING = 'string';
+  static const String HEX = "hex-string";
+  static const String BASE58 = "base58-string";
+  static const String BASE64 = "base64-string";
 
-  static var _hasRegisterPrimitives = false;
+  /**
+   * Map of kind `TypeName => TypeInterface`. Holds all
+   * callbacks for (de)serialization of every registered type.
+   *
+   * If the value stored is a string, it is treated as an alias.
+   */
+  // public types: Map<string, TypeInterface | string> = new Map();
+  Map<String, dynamic> types = {};
 
-  static final Map<String, TypeInterface> _types = {};
+  /**
+   * Stored BcsConfig for the current instance of BCS.
+   */
+  late BcsConfig schema;
 
-  static Map<String, TypeInterface> get types {
-    if (!_hasRegisterPrimitives) {
-      registerPrimitives();
-      _hasRegisterPrimitives = true;
+  /**
+   * Count temp keys to generate a new one when requested.
+   */
+  int counter = 0;
+
+  /**
+   * Name of the key to use for temporary struct definitions.
+   * Returns a temp key + index (for a case when multiple temp
+   * structs are processed).
+   */
+  String tempKey() {
+    return "bcs-struct-${++counter}";
+  }
+
+  /**
+   * Construct a BCS instance with a prepared schema.
+   *
+   * @param schema A prepared schema with type definitions
+   * @param withPrimitives Whether to register primitive types by default
+   */
+
+  factory BCS.fromBCS(BCS bcs) {
+    final tmp = BCS._();
+    tmp.schema = bcs.schema;
+    tmp.types = Map.of(bcs.types);
+    return tmp;
+  }
+
+  BCS._();
+
+  BCS(BcsConfig scheme) {
+    schema = scheme;
+
+    // Register address type under key 'address'.
+    registerAddressType(
+      BCS.ADDRESS,
+      schema.addressLength,
+      schema.addressEncoding ?? Encoding.hex
+    );
+    registerVectorType(schema.vectorType);
+
+    // Register struct types if they were passed.
+    if (schema.types != null && schema.types!.structs != null) {
+      for (var item in schema.types!.structs!.entries) {
+        registerStructType(item.key, item.value);
+      }
     }
-    return _types;
+
+    // Register enum types if they were passed.
+    if (schema.types != null && schema.types!.enums != null) {
+      for (var item in schema.types!.enums!.entries) {
+        registerEnumType(item.key, item.value);
+      }
+    }
+
+    // Register aliases if they were passed.
+    if (schema.types != null && schema.types!.aliases != null) {
+      for (var item in schema.types!.aliases!.entries) {
+        registerAlias(item.key, item.value);
+      }
+    }
+
+    if (schema.withPrimitives != false) {
+      registerPrimitives(this);
+    }
   }
 
-  /// Serialize data into bcs.
-  ///
-  /// ```dart
-  /// BCS.registerVectorType('vector<u8>', 'u8');
-  ///
-  /// final serialized = BCS
-  ///   .set('vector<u8>', [1,2,3,4,5,6])
-  ///   .toBytes();
-  ///
-  /// assert(Hex.encode(serialized) === '06010203040506');
-  /// ```
-  static BcsWriter ser(String type, dynamic data, [int size = 1024]) {
-    return getTypeInterface(type).encode(data, size);
-  }
-
-  /// Deserialize BCS into a Dart type.
-  ///
-  /// ```dart
-  /// final num = BCS.ser('u64', '4294967295').toHexString();
-  /// final deNum = BCS.de('u64', num, 'hex');
-  /// assert(deNum.toString() === '4294967295');
-  ///```
-  static dynamic de(
-    String type,
+  /**
+   * Serialize data into bcs.
+   *
+   * @example
+   * bcs.registerVectorType('vector<u8>', 'u8');
+   *
+   * let serialized = BCS
+   *   .set('vector<u8>', [1,2,3,4,5,6])
+   *   .toBytes();
+   *
+   * console.assert(toHex(serialized) === '06010203040506');
+   *
+   * @param type Name of the type to serialize (must be registered) or a struct type.
+   * @param data Data to serialize.
+   * @param size Serialization buffer size. Default 1024 = 1KB.
+   * @return A BCS reader instance. Usually you'd want to call `.toBytes()`
+   */
+  BcsWriter ser(
+    dynamic type,
     dynamic data,
-    [String? encoding]
+    [BcsWriterOptions? options]
+  ) {
+    if (type is String || type is Iterable) {
+      final (name, params) = parseTypeName(type);
+      return getTypeInterface(name).encode(
+        data,
+        options,
+        params
+      );
+    }
+
+    // Quick serialization without registering the type in the main struct.
+    if (type is StructTypeDefinition) {
+      final key = tempKey();
+      final temp = BCS.fromBCS(this);
+      return temp.registerStructType(key, type).ser(key, data, options);
+    }
+
+    throw ArgumentError(
+      "Incorrect type passed into the '.ser()' function. \n${jsonEncode(
+        type
+      )}"
+    );
+  }
+
+  /**
+   * Deserialize BCS into a JS type.
+   *
+   * @example
+   * let num = bcs.ser('u64', '4294967295').toString('hex');
+   * let deNum = bcs.de('u64', num, 'hex');
+   * console.assert(deNum.toString(10) === '4294967295');
+   *
+   * @param type Name of the type to deserialize (must be registered) or a struct type definition.
+   * @param data Data to deserialize.
+   * @param encoding Optional - encoding to use if data is of type String
+   * @return Deserialized data.
+   */
+  dynamic de(
+    dynamic type,
+    dynamic data,
+    [Encoding? encoding]
   ) {
     if (data is String) {
       if (encoding != null) {
         data = decodeStr(data, encoding);
       } else {
-        throw ArgumentError('To pass a string to `bcs.de`, specify encoding');
+        throw ArgumentError("To pass a string to `bcs.de`, specify encoding");
       }
     }
 
-    return getTypeInterface(type).decode(data);
+    // In case the type specified is already registered.
+    if (type is String || type is Iterable) {
+      final (name, params) = parseTypeName(type);
+      return getTypeInterface(name).decode(data, params);
+    }
+
+    // Deserialize without registering a type using a temporary clone.
+    if (type is StructTypeDefinition) {
+      final temp = BCS.fromBCS(this);
+      final key = tempKey();
+      return temp.registerStructType(key, type).de(key, data, encoding);
+    }
+
+    throw ArgumentError(
+      "Incorrect type passed into the '.de()' function. \n${jsonDecode(type)}"
+    );
   }
 
-  /// Check whether a TypeInterface has been loaded for the `Type`
-  static bool hasType(String type) {
+  /**
+   * Check whether a `TypeInterface` has been loaded for a `type`.
+   * @param type Name of the type to check.
+   * @returns
+   */
+  bool hasType(String type) {
     return types.containsKey(type);
   }
 
-  /// Method to register new types for BCS internal representation.
-  /// For each registered type 2 callbacks must be specified and one is optional:
-  ///
-  /// - encodeCb(writer, data) - write a way to serialize data with BcsWriter;
-  /// - decodeCb(reader) - write a way to deserialize data with BcsReader;
-  /// - validateCb(data) - validate data - either return bool or throw an error
-  ///
-  /// ```dart
-  /// // our type would be a string that consists only of numbers
-  /// BCS.registerType('number_string',
-  ///    (writer, data) => writer.writeVec(data, (w, el, _a, _b) => w.write8(el)),
-  ///    (reader) => reader.readVec((r, _a, _b) => r.read8()).join(''), // read each value as u8
-  ///    (value) => RegExp(r'[0-9]+').hasMatch(value) // test that it has at least one digit
-  /// );
-  /// print(Hex.encode(BCS.ser('number_string', '12345').toBytes()) == Hex.encode([5,1,2,3,4,5]));
-  /// ```
-  static void registerType(
-    String name,
+  /**
+   * Create an alias for a type.
+   * WARNING: this can potentially lead to recursion
+   * @param name Alias to use
+   * @param forType Type to reference
+   * @returns
+   *
+   * @example
+   * ```
+   * let bcs = new BCS(getSuiMoveConfig());
+   * bcs.registerAlias('ObjectDigest', BCS.BASE58);
+   * let b58_digest = bcs.de('ObjectDigest', '<digest_bytes>', 'base64');
+   * ```
+   */
+  BCS registerAlias(String name, String forType) {
+    types[name] = forType;
+    return this;
+  }
+
+  /**
+   * Method to register new types for BCS internal representation.
+   * For each registered type 2 callbacks must be specified and one is optional:
+   *
+   * - encodeCb(writer, data) - write a way to serialize data with BcsWriter;
+   * - decodeCb(reader) - write a way to deserialize data with BcsReader;
+   * - validateCb(data) - validate data - either return bool or throw an error
+   *
+   * @example
+   * // our type would be a string that consists only of numbers
+   * bcs.registerType('number_string',
+   *    (writer, data) => writer.writeVec(data, (w, el) => w.write8(el)),
+   *    (reader) => reader.readVec((r) => r.read8()).join(''), // read each value as u8
+   *    (value) => /[0-9]+/.test(value) // test that it has at least one digit
+   * );
+   * console.log(Array.from(bcs.ser('number_string', '12345').toBytes()) == [5,1,2,3,4,5]);
+   *
+   * @param name
+   * @param encodeCb Callback to encode a value.
+   * @param decodeCb Callback to decode a value.
+   * @param validateCb Optional validator Callback to check type before serialization.
+   */
+  BCS registerType(
+    TypeName typeName,
     EncodeCb encodeCb,
     DecodeCb decodeCb,
     [ValidateCb? validateCb]
   ) {
     validateCb ??= (data) => true;
 
-    _types[name] = TypeEncodeDecode(name, encodeCb, decodeCb, validateCb);
+    final (name, generics) = parseTypeName(typeName);
+
+    types[name] = TypeEncodeDecode(this, typeName, encodeCb, decodeCb, validateCb);
+
+    return this;
   }
 
-  /// Register an address type which is a sequence of U8s of specified length.
-  /// ```dart
-  /// BCS.registerAddressType('address', 20);
-  /// final addr = BCS.de('address', 'ca27601ec5d915dd40d42e36c395d4a156b24026');
-  /// ```
-  static registerAddressType(
+  /**
+   * Register an address type which is a sequence of U8s of specified length.
+   * @example
+   * bcs.registerAddressType('address', SUI_ADDRESS_LENGTH);
+   * let addr = bcs.de('address', 'c3aca510c785c7094ac99aeaa1e69d493122444df50bb8a99dfa790c654a79af');
+   *
+   * @param name Name of the address type.
+   * @param length Byte length of the address.
+   * @param encoding Encoding to use for the address type
+   * @returns
+   */
+  BCS registerAddressType(
     String name,
     int length,
-    [String encoding = 'hex']
+    [Encoding encoding = Encoding.hex]
   ) {
     switch (encoding) {
-      case 'base64':
+      case Encoding.base64:
         return registerType(
           name,
-          (writer, data) {
-            base64Decode(data).forEach((element) {
-              writer.write8(element);
-            });
+          (writer, data, _, __) { 
+            fromB64(data).forEach((el) => writer.write8(el));
             return writer;
           },
-          (reader) => base64Encode(reader.readBytes(length))
+          (reader, _, __) => toB64(reader.readBytes(length))
         );
-      case 'hex':
+      case Encoding.hex:
         return registerType(
           name,
-          (writer, data) {
-            Hex.decode(data).forEach((element) {
-              writer.write8(element);
-            });
+          (writer, data, _, __) { 
+            fromHEX(data).forEach((el) => writer.write8(el));
             return writer;
           },
-          (reader) => Hex.encode(reader.readBytes(length))
+          (reader, _, __) => toHEX(reader.readBytes(length))
         );
       default:
-        throw ArgumentError('Unsupported encoding! Use either hex or base64');
+        throw ArgumentError("Unsupported encoding! Use either hex or base64");
     }
   }
 
-  /// Register custom vector type inside the BCS.
-  ///
-  /// ```dart
-  /// BCS.registerVectorType('vector<u8>', 'u8');
-  /// final array = BCS.de('vector<u8>', '06010203040506', 'hex'); // [1,2,3,4,5,6];
-  /// final again = BCS.ser('vector<u8>', [1,2,3,4,5,6]).toHexString();
-  /// ```
-  static registerVectorType(
-    String name,
-    String elementType
-  ) {
+  /**
+   * Register custom vector type inside the bcs.
+   *
+   * @example
+   * bcs.registerVectorType('vector<T>'); // generic registration
+   * let array = bcs.de('vector<u8>', '06010203040506', 'hex'); // [1,2,3,4,5,6];
+   * let again = bcs.ser('vector<u8>', [1,2,3,4,5,6]).toString('hex');
+   *
+   * @param name Name of the type to register
+   * @param elementType Optional name of the inner type of the vector
+   * @return Returns self for chaining.
+   */
+  BCS registerVectorType(String typeName) {
+    final (name, params) = parseTypeName(typeName);
+    if (params.length > 1) {
+      throw ArgumentError("Vector can have only one type parameter; got " + name);
+    }
+
     return registerType(
-      name,
-      (writer, data) =>
-        writer.writeVec(data, (writer, el, a, b) {
-          return BCS.getTypeInterface(elementType)._encodeRaw(writer, el);
-        }),
-      (reader) =>
-        reader.readVec((reader, a, b) {
-          return BCS.getTypeInterface(elementType)._decodeRaw(reader);
-        })
+      typeName,
+      (writer, data, typeParams, typeMap) {
+        return writer.writeVec(data, (writer, el, _, __) {
+          if (typeParams.isEmpty) {
+            throw ArgumentError(
+              "Incorrect number of type parameters passed a to vector '$typeName'"
+            );
+          }
+
+          final elementType = typeParams[0];
+          final (name, params) = parseTypeName(elementType);
+          if (hasType(name)) {
+            return getTypeInterface(name)._encodeRaw(
+              writer,
+              el,
+              params,
+              typeMap
+            );
+          }
+
+          if (!(typeMap.containsKey(name))) {
+            throw ArgumentError(
+              "Unable to find a matching type definition for $name in vector; make sure you passed a generic"
+            );
+          }
+
+          final (innerName, innerParams) = parseTypeName(
+            typeMap[name]
+          );
+
+          return getTypeInterface(innerName)._encodeRaw(
+            writer,
+            el,
+            innerParams,
+            typeMap
+          );
+        });
+      },
+      (reader, typeParams, typeMap) { 
+        return reader.readVec((reader, _, __) {
+          if (typeParams.isEmpty) {
+            throw ArgumentError(
+              "Incorrect number of type parameters passed to a vector '$typeName'"
+            );
+          }
+
+          final elementType = typeParams[0];
+          final (name, params) = parseTypeName(elementType);
+          if (hasType(name)) {
+            return getTypeInterface(name)._decodeRaw(
+              reader,
+              params,
+              typeMap
+            );
+          }
+
+          if (!(typeMap.containsKey(name))) {
+            throw ArgumentError(
+              "Unable to find a matching type definition for $name in vector; make sure you passed a generic"
+            );
+          }
+
+          final (innerName, innerParams) = parseTypeName(
+            typeMap[name]
+          );
+          getTypeInterface(innerName)._decodeRaw(
+            reader,
+            innerParams,
+            typeMap
+          );
+        });
+      }
     );
   }
 
-  /// Safe method to register a custom Move struct. The first argument is a name of the
-  /// struct which is only used on the FrontEnd and has no affect on serialization results,
-  /// and the second is a struct description passed as an Object.
-  ///
-  /// The description object MUST have the same order on all of the platforms (ie in Move
-  /// or in Rust).
-  ///
-  /// ```
-  /// // Move / Rust struct
-  /// // struct Coin {
-  /// //   value: u64,
-  /// //   owner: vector<u8>, // name // Vec<u8> in Rust
-  /// //   is_locked: bool,
-  /// // }
-  /// ```
-  ///
-  /// ```dart
-  /// BCS.registerStructType('Coin', {
-  ///   'value': BCS.U64,
-  ///   'owner': BCS.STRING,
-  ///   'is_locked': BCS.BOOL
-  /// });
-  ///
-  /// // Created in Rust with diem/bcs
-  /// // final rust_bcs_str = '80d1b105600000000e4269672057616c6c65742047757900';
-  /// final rust_bcs_str = [ // using an Array here as BCS works with Uint8Array
-  ///  128, 209, 177,   5,  96,  0,  0,
-  ///    0,  14,  66, 105, 103, 32, 87,
-  ///   97, 108, 108, 101, 116, 32, 71,
-  ///  117, 121,   0
-  /// ];
-  ///
-  /// // Let's encode the value as well
-  /// final test_set = BCS.ser('Coin', {
-  ///   'owner': 'Big Wallet Guy',
-  ///   'value': '412412400000',
-  ///   'is_locked': false,
-  /// });
-  ///
-  /// assert(Hex.encode(test_set.toBytes()) == Hex.encode(rust_bcs_str), 'Whoopsie, result mismatch');
-  /// ```
-  static registerStructType(
-    String name,
-    Map<String, String> fields
+  /**
+   * Safe method to register a custom Move struct. The first argument is a name of the
+   * struct which is only used on the FrontEnd and has no affect on serialization results,
+   * and the second is a struct description passed as an Object.
+   *
+   * The description object MUST have the same order on all of the platforms (ie in Move
+   * or in Rust).
+   *
+   * @example
+   * // Move / Rust struct
+   * // struct Coin {
+   * //   value: u64,
+   * //   owner: vector<u8>, // name // Vec<u8> in Rust
+   * //   is_locked: bool,
+   * // }
+   *
+   * bcs.registerStructType('Coin', {
+   *   value: bcs.U64,
+   *   owner: bcs.STRING,
+   *   is_locked: bcs.BOOL
+   * });
+   *
+   * // Created in Rust with diem/bcs
+   * // let rust_bcs_str = '80d1b105600000000e4269672057616c6c65742047757900';
+   * let rust_bcs_str = [ // using an Array here as BCS works with Uint8Array
+   *  128, 209, 177,   5,  96,  0,  0,
+   *    0,  14,  66, 105, 103, 32, 87,
+   *   97, 108, 108, 101, 116, 32, 71,
+   *  117, 121,   0
+   * ];
+   *
+   * // Let's encode the value as well
+   * let test_set = bcs.ser('Coin', {
+   *   owner: 'Big Wallet Guy',
+   *   value: '412412400000',
+   *   is_locked: false,
+   * });
+   *
+   * console.assert(Array.from(test_set.toBytes()) === rust_bcs_str, 'Whoopsie, result mismatch');
+   *
+   * @param name Name of the type to register.
+   * @param fields Fields of the struct. Must be in the correct order.
+   * @return Returns BCS for chaining.
+   */
+  BCS registerStructType(
+    TypeName typeName,
+    StructTypeDefinition fields
   ) {
+    // When an Object is passed, we register it under a new key and store it
+    // in the registered type system. This way we allow nested inline definitions.
+    final fieldsTmp = <String, dynamic>{}; // fix dynamic change value type of Map
+    for (final key in fields.keys) {
+      final internalName = tempKey();
+      final value = fields[key];
+
+      // TODO: add a type guard here?
+      if (value is! String && value is! Iterable) {
+        // fields[key] = internalName;
+        fieldsTmp[key] = internalName;
+        registerStructType(internalName, value as StructTypeDefinition);
+      } else {
+        fieldsTmp[key] = value;
+      }
+    }
+    fields = fieldsTmp;
+
     // Make sure the order doesn't get changed
-    final struct = Map.of(fields);
+    final struct = Map<String, dynamic>.from(fields);
 
     // IMPORTANT: we need to store canonical order of fields for each registered
     // struct so we maintain it and allow developers to use any field ordering in
     // their code (and not cause mismatches based on field order).
-    var canonicalOrderKeys = struct.keys;
+    final canonicalOrder = struct.keys;
+
+    // Holds generics for the struct definition. At this stage we can check that
+    // generic parameter matches the one defined in the struct.
+    final (structName, generics) = parseTypeName(typeName);
 
     // Make sure all the types in the fields description are already known
     // and that all the field types are strings.
     return registerType(
-      name,
-      (writer, data) {
+      typeName,
+      (writer, data, typeParams, typeMap) {
         if (data == null) {
-          throw ArgumentError("Expected $name to be an Object, got: $data");
+          throw ArgumentError(
+            "Expected $structName to be an Object, got: $data"
+          );
         }
 
-        for (var key in canonicalOrderKeys.toList()) {
-          if (data[key] != null) {
-            BCS.getTypeInterface(struct[key]!)._encodeRaw(writer, data[key]);
+        if (typeParams.length != generics.length) {
+          throw ArgumentError(
+            "Incorrect number of generic parameters passed; expected: ${generics.length}, got: ${typeParams.length}"
+          );
+        }
+
+        // follow the canonical order when serializing
+        for (String key in canonicalOrder) {
+          if (!data.containsKey(key)) {
+            throw Exception('Struct $structName requires field $key:${data[key]}');
+          }
+
+          // Before deserializing, read the canonical field type.
+          final (fieldType, fieldParams) = parseTypeName(
+            struct[key] as TypeName
+          );
+
+          // Check whether this type is a generic defined in this struct.
+          // If it is -> read the type parameter matching its index.
+          // If not - tread as a regular field.
+          if (!generics.contains(fieldType)) {
+            getTypeInterface(fieldType)._encodeRaw(
+              writer,
+              data[key],
+              fieldParams,
+              typeMap
+            );
           } else {
-            throw ArgumentError(
-              "Struct $name requires field $key:${struct[key]}"
+            final paramIdx = generics.indexOf(fieldType);
+            final (name, params) = parseTypeName(typeParams[paramIdx]);
+
+            // If the type from the type parameters already exists
+            // and known -> proceed with type decoding.
+            if (hasType(name)) {
+              getTypeInterface(name)._encodeRaw(
+                writer,
+                data[key],
+                params,
+                typeMap
+              );
+              continue;
+            }
+
+            // Alternatively, if it's a global generic parameter...
+            if (!(typeMap.containsKey(name))) {
+              throw ArgumentError(
+                "Unable to find a matching type definition for ${name} in ${structName}; make sure you passed a generic"
+              );
+            }
+
+            final (innerName, innerParams) = parseTypeName(
+              typeMap[name]
+            );
+            getTypeInterface(innerName)._encodeRaw(
+              writer,
+              data[key],
+              innerParams,
+              typeMap
             );
           }
         }
         return writer;
       },
-      (reader) {
+      (reader, typeParams, typeMap) {
+        if (typeParams.length != generics.length) {
+          throw ArgumentError(
+            "Incorrect number of generic parameters passed; expected: ${generics.length}, got: ${typeParams.length}"
+          );
+        }
+
         final result = <String, dynamic>{};
-        for (var key in canonicalOrderKeys.toList()) {
-          result[key] = BCS.getTypeInterface(struct[key]!)._decodeRaw(reader);
+        for (String key in canonicalOrder) {
+          final(fieldName, fieldParams) = parseTypeName(
+            struct[key] as TypeName
+          );
+
+          // if it's not a generic
+          if (!generics.contains(fieldName)) {
+            result[key] = getTypeInterface(fieldName)._decodeRaw(
+              reader,
+              fieldParams,
+              typeMap
+            );
+          } else {
+            final paramIdx = generics.indexOf(fieldName);
+            final (name, params) = parseTypeName(typeParams[paramIdx]);
+
+            // If the type from the type parameters already exists
+            // and known -> proceed with type decoding.
+            if (hasType(name)) {
+              result[key] = getTypeInterface(name)._decodeRaw(
+                reader,
+                params,
+                typeMap
+              );
+              continue;
+            }
+
+            if (!(typeMap.containsKey(name))) {
+              throw ArgumentError(
+                "Unable to find a matching type definition for ${name} in ${structName}; make sure you passed a generic"
+              );
+            }
+
+            final (innerName, innerParams) = parseTypeName(
+              typeMap[name]
+            );
+            result[key] = getTypeInterface(innerName)._decodeRaw.call(
+              reader,
+              innerParams,
+              typeMap
+            );
+          }
         }
         return result;
       }
     );
   }
 
-  /// Safe method to register custom enum type where each invariant holds the value of another type.
-  /// ```dart
-  /// BCS.registerStructType('Coin', { 'value': 'u64' });
-  /// BCS.registerVectorType('vector<Coin>', 'Coin');
-  /// BCS.registerEnumType('MyEnum', {
-  ///  'single': 'Coin',
-  ///  'multi': 'vector<Coin>'
-  /// });
-  ///
-  /// print(BCS.de('MyEnum', 'AICWmAAAAAAA', 'base64')); // { single: { value: 10000000 } }
-  /// print(BCS.de('MyEnum', 'AQIBAAAAAAAAAAIAAAAAAAAA', 'base64'));  // { multi: [ { value: 1 }, { value: 2 } ] }
-  ///
-  /// // and serialization
-  /// BCS.ser('MyEnum', { 'single': { 'value': 10000000 } }).toBytes();
-  /// BCS.ser('MyEnum', { 'multi': [ { 'value': 1 }, { 'value': 2 } ] });
-  /// ```
-  static registerEnumType(
-    String name,
-    Map<String, dynamic> variants
+  /**
+   * Safe method to register custom enum type where each invariant holds the value of another type.
+   * @example
+   * bcs.registerStructType('Coin', { value: 'u64' });
+   * bcs.registerEnumType('MyEnum', {
+   *  single: 'Coin',
+   *  multi: 'vector<Coin>',
+   *  empty: null
+   * });
+   *
+   * console.log(
+   *  bcs.de('MyEnum', 'AICWmAAAAAAA', 'base64'), // { single: { value: 10000000 } }
+   *  bcs.de('MyEnum', 'AQIBAAAAAAAAAAIAAAAAAAAA', 'base64')  // { multi: [ { value: 1 }, { value: 2 } ] }
+   * )
+   *
+   * // and serialization
+   * bcs.ser('MyEnum', { single: { value: 10000000 } }).toBytes();
+   * bcs.ser('MyEnum', { multi: [ { value: 1 }, { value: 2 } ] });
+   *
+   * @param name
+   * @param variants
+   */
+  BCS registerEnumType(
+    TypeName typeName,
+    EnumTypeDefinition variants
   ) {
+    // When an Object is passed, we register it under a new key and store it
+    // in the registered type system. This way we allow nested inline definitions.
+    for (final key in variants.keys) {
+      final internalName = tempKey();
+      final value = variants[key];
+
+      if (
+        value != null &&
+        (value is! Iterable) &&
+        value is! String
+      ) {
+        variants[key] = internalName;
+        registerStructType(internalName, value as StructTypeDefinition);
+      }
+
+    }
+
     // Make sure the order doesn't get changed
     final struct = Map<String, dynamic>.from(variants);
 
     // IMPORTANT: enum is an ordered type and we have to preserve ordering in BCS
-    var canonicalOrderKeys = struct.keys;
+    var canonicalOrder = struct.keys;
+
+    // Parse type parameters in advance to know the index of each generic parameter.
+    final (name, canonicalTypeParams) = parseTypeName(typeName);
 
     return registerType(
-      name,
-      (writer, data) {
+      typeName,
+      (writer, data, typeParams, typeMap) {
         if (data == null) {
-          throw ArgumentError("Unable to write enum $name, missing data");
-        }
-
-        if ((data as Map<String, dynamic>).isEmpty) {
-          throw ArgumentError("Unknown invariant of the enum $name");
-        }
-
-        String key = data.keys.first;
-        List<String> canonicalOrder = canonicalOrderKeys.toList();
-        int orderByte = canonicalOrder.indexOf(key);
-        if (orderByte == -1) {
           throw ArgumentError(
-            "Unknown invariant of the enum $name, allowed values: $canonicalOrder"
+            'Unable to write enum "$name", missing data.\nReceived: "$data'
           );
         }
-        String invariant = canonicalOrder[orderByte];
-        String? invariantType = struct[invariant];
+        if (data is! Map) {
+          throw ArgumentError(
+            'Incorrect data passed into enum "$name", expected object with properties: "${canonicalOrder.join(
+              " | "
+            )}".\nReceived: "${jsonEncode(data)}"'
+          );
+        }
+        
+        if (data.isEmpty) {
+          throw ArgumentError(
+            'Empty object passed as invariant of the enum "$name"'
+          );
+        }
 
-        writer.write8(orderByte); // write order byte
+        final key = data.keys.first;
+        final orderByte = canonicalOrder.toList().indexOf(key);
+        if (orderByte == -1) {
+          throw ArgumentError(
+            'Unknown invariant of the enum "${name}", allowed values: "${canonicalOrder.join(
+              " | "
+            )}"; received "${key}"'
+          );
+        }
+        final invariant = canonicalOrder.toList()[orderByte];
+        final invariantType = struct[invariant];
 
-        // Allow empty Enum values!
-        return invariantType != null
-          ? BCS.getTypeInterface(invariantType)._encodeRaw(writer, data[key])
-          : writer;
+        // write order byte
+        writer.write8(orderByte);
+
+        // When { "key": null } - empty value for the invariant.
+        if (invariantType == null) {
+          return writer;
+        }
+
+        final paramIndex = canonicalTypeParams.indexOf(invariantType);
+        final typeOrParam =
+          paramIndex == -1 ? invariantType : typeParams[paramIndex];
+
+        {
+          final (name, params) = parseTypeName(typeOrParam);
+          return getTypeInterface(name)._encodeRaw(
+            writer,
+            data[key],
+            params,
+            typeMap
+          );
+        }
       },
-      (reader) {
-        int orderByte = reader.readULEB();
-        List<String> canonicalOrder = canonicalOrderKeys.toList();
-        String invariant = canonicalOrder[orderByte];
-        String? invariantType = struct[invariant];
+      (reader, typeParams, typeMap) {
+        final orderByte = reader.readULEB();
+        final invariant = canonicalOrder.toList()[orderByte];
+        final invariantType = struct[invariant];
 
         if (orderByte == -1) {
           throw ArgumentError(
-            "Decoding type mismatch, expected enum $name invariant index, received $orderByte"
+            'Decoding type mismatch, expected enum "$name" invariant index, received "$orderByte"'
           );
         }
 
-        return {
-          [invariant]:
-            invariantType != null
-              ? BCS.getTypeInterface(invariantType)._decodeRaw(reader)
-              : true,
-        };
+        // Encode an empty value for the enum.
+        if (invariantType == null) {
+          return { invariant: true };
+        }
+
+        final paramIndex = canonicalTypeParams.indexOf(invariantType);
+        final typeOrParam =
+          paramIndex == -1 ? invariantType : typeParams[paramIndex];
+
+        {
+          final (name, params) = parseTypeName(typeOrParam);
+          return {
+            invariant: getTypeInterface(name)._decodeRaw(
+              reader,
+              params,
+              typeMap
+            ),
+          };
+        }
       }
     );
   }
+  /**
+   * Get a set of encoders/decoders for specific type.
+   * Mainly used to define custom type de/serialization logic.
+   *
+   * @param type
+   * @returns {TypeInterface}
+   */
+  TypeInterface getTypeInterface(String type) {
+    var typeInterface = types[type];
 
-  /// Get a set of encoders/decoders for specific type.
-  /// Mainly used to define custom type de/serialization logic.
-  static TypeInterface getTypeInterface(String type) {
-    final typeInterface = BCS.types[type];
+    // Special case - string means an alias.
+    // Goes through the alias chain and tracks recursion.
+    if (typeInterface is String) {
+      List<String> chain = [];
+      while (typeInterface is String) {
+        if (chain.contains(typeInterface)) {
+          throw ArgumentError(
+            'Recursive definition found: ${chain.join(
+              " -> "
+            )} -> ${typeInterface}'
+          );
+        }
+        chain.add(typeInterface);
+        typeInterface = types[typeInterface];
+      }
+    }
+
     if (typeInterface == null) {
       throw ArgumentError("Type $type is not registered");
     }
+
     return typeInterface;
   }
-}
 
-/// Encode [data] with either `hex` or `base64`.
-String encodeStr(Uint8List data, String encoding) {
-  switch (encoding) {
-    case 'base64':
-      return base64Encode(data);
-    case 'hex':
-      return Hex.encode(data);
-    default:
-      throw ArgumentError('Unsupported encoding, supported values are: base64, hex');
+  /**
+   * Parse a type name and get the type's generics.
+   * @example
+   * let { typeName, typeParams } = parseTypeName('Option<Coin<SUI>>');
+   * // typeName: Option
+   * // typeParams: [ 'Coin<SUI>' ]
+   *
+   * @param name Name of the type to process
+   * @returns Object with typeName and typeParams listed as Array
+   */
+  (String, List<dynamic>) parseTypeName(TypeName name) {
+    if (name is Iterable) {
+      final nameList = name.toList();
+      return (nameList[0], nameList.sublist(1));
+    }
+
+    if (name is! String) {
+      throw ArgumentError("Illegal type passed as a name of the type: $name");
+    }
+
+    final (left, right) = schema.genericSeparators ?? ("<", ">");
+
+    final l_bound = name.indexOf(left);
+    final r_bound = name.split("").reversed.toList().indexOf(right);
+
+    // if there are no generics - exit gracefully.
+    if (l_bound == -1 && r_bound == -1) {
+      return (name, []);
+    }
+
+    // if one of the bounds is not defined - throw an Error.
+    if (l_bound == -1 || r_bound == -1) {
+      throw ArgumentError("Unclosed generic in name '$name'");
+    }
+
+    final typeName = name.substring(0, l_bound);
+    final params = name
+      .substring(l_bound + 1, name.length - r_bound - 1)
+      .split(",")
+      .map((e) => e.trim())
+      .toList();
+
+    return (typeName, params);
   }
 }
 
-/// Decode [data] either `base64` or `hex` data.
-Uint8List decodeStr(String data, String encoding) {
+/**
+ * Encode data with either `hex` or `base64`.
+ *
+ * @param {Uint8Array} data Data to encode.
+ * @param {String} encoding Encoding to use: base64 or hex
+ * @return {String} Encoded value.
+ */
+String encodeStr(Uint8List data, Encoding encoding) {
   switch (encoding) {
-    case 'base64':
-      return base64Decode(data);
-    case 'hex':
-      return Hex.decode(data);
+    case Encoding.base58:
+      return toB58(data);
+    case Encoding.base64:
+      return toB64(data);
+    case Encoding.hex:
+      return toHEX(data);
     default:
-      throw ArgumentError('Unsupported encoding, supported values are: base64, hex');
+      throw ArgumentError(
+        "Unsupported encoding, supported values are: base64, hex"
+      );
+  }
+}
+
+/**
+ * Decode either `base64` or `hex` data.
+ *
+ * @param {String} data Data to encode.
+ * @param {String} encoding Encoding to use: base64 or hex
+ * @return {Uint8Array} Encoded value.
+ */
+Uint8List decodeStr(String data, Encoding encoding) {
+  switch (encoding) {
+    case Encoding.base58:
+      return fromB58(data);
+    case Encoding.base64:
+      return fromB64(data);
+    case Encoding.hex:
+      return fromHEX(data);
+    default:
+      throw ArgumentError(
+        "Unsupported encoding, supported values are: base64, hex"
+      );
   }
 }
 
@@ -702,54 +1417,154 @@ BigInt toBN(dynamic number) {
   }
 }
 
-void registerPrimitives() {
-  BCS.registerType(
+/**
+ * Register the base set of primitive and common types.
+ * Is called in the `BCS` constructor automatically but can
+ * be ignored if the `withPrimitives` argument is not set.
+ */
+void registerPrimitives(BCS bcs) {
+  bcs.registerType(
     BCS.U8,
-    (BcsWriter writer, dynamic data) => writer.write8(data),
-    (BcsReader reader) => reader.read8(),
+    (writer, data, _, __) {
+      return writer.write8(int.parse(data.toString()));
+    },
+    (reader, _, __) {
+      return reader.read8();
+    },
     (u8) => toBN(u8) <= BigInt.from(MAX_U8_NUMBER)
   );
 
-  BCS.registerType(
+  bcs.registerType(
+    BCS.U16,
+    (writer, data, _, __) {
+      return writer.write16(int.parse(data.toString()));
+    },
+    (reader, _, __) {
+      return reader.read16();
+    },
+    (u16) => toBN(u16) <= BigInt.from(MAX_U16_NUMBER)
+  );
+
+  bcs.registerType(
     BCS.U32,
-    (BcsWriter writer, dynamic data) => writer.write32(data),
-    (BcsReader reader) => reader.read32(),
+    (writer, data, _, __) {
+      return writer.write32(int.parse(data.toString()));
+    },
+    (reader, _, __) {
+      return reader.read32();
+    },
     (u32) => toBN(u32) <= BigInt.from(MAX_U32_NUMBER)
   );
 
-  BCS.registerType(
+  bcs.registerType(
     BCS.U64,
-    (BcsWriter writer, dynamic data) => writer.write64(BigInt.parse(data.toString())),
-    (BcsReader reader) => reader.read64(),
-    (_u64) => toBN(_u64) <= MAX_U64_BIG_INT
+    (writer, data, _, __) {
+      return writer.write64(BigInt.parse(data.toString()));
+    },
+    (reader, _, __) {
+      return reader.read64().toString();
+    }
   );
 
-  BCS.registerType(
+  bcs.registerType(
     BCS.U128,
-    (BcsWriter writer, dynamic data) => writer.write128(BigInt.parse(data.toString())),
-    (BcsReader reader) => reader.read128(),
-    (_u128) => toBN(_u128) <= MAX_U128_BIG_INT
+    (writer, data, _, __) {
+      return writer.write128(BigInt.parse(data.toString()));
+    },
+    (reader, _, __) {
+      return reader.read128().toString();
+    }
   );
 
-  BCS.registerType(
+  bcs.registerType(
+    BCS.U256,
+    (writer, data, _, __) {
+      return writer.write256(BigInt.parse(data.toString()));
+    },
+    (reader, _, __) {
+      return reader.read256().toString();
+    }
+  );
+
+  bcs.registerType(
     BCS.BOOL,
-    (BcsWriter writer, dynamic data) => writer.write8(data ? 1 : 0),
-    (BcsReader reader) => reader.read8() == BigInt.one,
-    (_bool) => true
+    (writer, data, _, __) {
+      return writer.write8(data == true ? 1 : 0);
+    },
+    (reader, _, __) {
+      return reader.read8().toString() == "1";
+    }
   );
 
-  BCS.registerType(
+  bcs.registerType(
     BCS.STRING,
-    (writer, data) =>
-      writer.writeVec(data, (writer, el, a, b) {
+    (writer, data, _, __) =>
+      writer.writeVec(data.split(""), (writer, el, a, b) {
         writer.write8(utf8.encode(el)[0]);
       }),
-    (BcsReader reader) {
+    (reader, _, __) {
       final data = reader
         .readVec((reader, a, b) => reader.read8())
         .map<int>((item) => item.toInt()).toList();
       return utf8.decode(data);
     },
     (_str) => true
+  );
+
+  bcs.registerType(
+    BCS.HEX,
+    (writer, data, _, __) {
+      return writer.writeVec(fromHEX(data), (writer, el, _, __) =>
+        writer.write8(el)
+      );
+    },
+    (reader, _, __) {
+      final bytes = reader.readVec((reader, _, __) => reader.read8());
+      return toHEX(Uint8List.fromList(bytes.cast<int>()));
+    }
+  );
+
+  bcs.registerType(
+    BCS.BASE58,
+    (writer, data, _, __) {
+      return writer.writeVec(fromB58(data), (writer, el, _, __) =>
+        writer.write8(el)
+      );
+    },
+    (reader, _, __) {
+      final bytes = reader.readVec((reader, _, __) => reader.read8());
+      return toB58(Uint8List.fromList(bytes.cast<int>()));
+    }
+  );
+
+  bcs.registerType(
+    BCS.BASE64,
+    (writer, data, _, __) {
+      return writer.writeVec(fromB64(data), (writer, el, _, __) =>
+        writer.write8(el)
+      );
+    },
+    (reader, _, __) {
+      final bytes = reader.readVec((reader, _, __) => reader.read8());
+      return toB64(Uint8List.fromList(bytes.cast<int>()));
+    }
+  );
+}
+
+BcsConfig getRustConfig() {
+  return BcsConfig(
+    vectorType: "Vec",
+    addressLength: SUI_ADDRESS_LENGTH,
+    genericSeparators: ("<", ">"),
+    addressEncoding: Encoding.hex
+  );
+}
+
+BcsConfig getSuiMoveConfig() {
+  return BcsConfig(
+    vectorType: "vector",
+    addressLength: SUI_ADDRESS_LENGTH,
+    genericSeparators: ("<", ">"),
+    addressEncoding: Encoding.hex
   );
 }
