@@ -17,13 +17,13 @@ void main() {
       const STR = "this is a test string";
       final str = bcs.ser("string", STR);
 
-      expect(bcs.de("string", fromB58(str.encode(Encoding.base58)), Encoding.base58),
+      expect(bcs.de("string", fromB58(str.base58()), Encoding.base58),
         STR
       );
-      expect(bcs.de("string", fromB64(str.encode(Encoding.base64)), Encoding.base64),
+      expect(bcs.de("string", fromB64(str.base64()), Encoding.base64),
         STR
       );
-      expect(bcs.de("string", fromHEX(str.encode(Encoding.hex)), Encoding.hex), STR);
+      expect(bcs.de("string", fromHEX(str.hex()), Encoding.hex), STR);
     });
 
     test("should de/ser native encoding types", () {

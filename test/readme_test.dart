@@ -1,5 +1,6 @@
 
 import 'package:bcs/bcs.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -29,7 +30,8 @@ void main() {
       final coin = bcs.de("Coin", bytes);
 
       // serialization: Object into bytes
-      final data = bcs.ser("Option<Coin>", { "some": coin }).encode(Encoding.hex);
+      final data = bcs.ser("Option<Coin>", { "some": coin }).hex();
+      debugPrint(data);
     });
 
     test("Example: All options used", () {
@@ -52,7 +54,8 @@ void main() {
         withPrimitives: true
       ));
 
-      final bytes = bcs.ser("User", { "name": "Adam", "age": "30" }).encode(Encoding.base64);
+      final bytes = bcs.ser("User", { "name": "Adam", "age": "30" }).base64();
+      debugPrint(bytes);
     });
 
     test("intestialization", () {
@@ -82,11 +85,11 @@ void main() {
 
       // Integers
       final _u8 = bcs.ser(BCS.U8, 100).toBytes();
-      final _u64 = bcs.ser(BCS.U64, BigInt.from(1000000)).encode(Encoding.hex);
-      final _u128 = bcs.ser(BCS.U128, "100000010000001000000").encode(Encoding.base64);
+      final _u64 = bcs.ser(BCS.U64, BigInt.from(1000000)).hex();
+      final _u128 = bcs.ser(BCS.U128, "100000010000001000000").base64();
 
       // Other types
-      final _bool = bcs.ser(BCS.BOOL, true).encode(Encoding.hex);
+      final _bool = bcs.ser(BCS.BOOL, true).hex();
       final _addr = bcs
         .ser(BCS.ADDRESS, "0000000000000000000000000000000000000001")
         .toBytes();
@@ -119,9 +122,9 @@ void main() {
       final bytes = bcsWrtester.toBytes();
 
       // custom encodings can be chosen when needed (just like Buffer)
-      final hex = bcsWrtester.encode(Encoding.hex);
-      final base64 = bcsWrtester.encode(Encoding.base64);
-      final base58 = bcsWrtester.encode(Encoding.base58);
+      final hex = bcsWrtester.hex();
+      final base64 = bcsWrtester.base64();
+      final base58 = bcsWrtester.base58();
 
       // bcs.de() reads BCS data and returns the value
       // by default test expects data to be `Uint8Array`
@@ -191,7 +194,7 @@ void main() {
         .ser(["Container", BCS.U8], {
           "contents": 100,
         })
-        .encode(Encoding.hex);
+        .hex();
 
       // Reusing the same Container type wtesth different contents.
       // Mind that generics need to be passed as Array after the main type.
@@ -199,7 +202,7 @@ void main() {
         .ser(["Container", ["vector", BCS.BOOL]], {
           "contents": [true, false, true],
         })
-        .encode(Encoding.hex);
+        .hex();
 
       // Using multiple generics - you can use any string for convenience and
       // readabiltesty. See how we also use array notation for a field defintestion.

@@ -24,7 +24,7 @@ void main() {
 
       const exp = "AO/Nq3hWNBI=";
       const num = "1311768467750121216";
-      final set = bcs.ser("u64", BigInt.parse(num)).encode(Encoding.base64);
+      final set = bcs.ser("u64", BigInt.parse(num)).base64();
 
       expect(set, exp);
       expect(bcs.de("u64", exp, Encoding.base64).toString(), "1311768467750121216");
@@ -39,7 +39,7 @@ void main() {
       expect(bcs.de("u128", sample, Encoding.base64).toString(),
         "1111311768467750121216"
       );
-      expect(bcs.ser("u128", num).encode(Encoding.base64), sample);
+      expect(bcs.ser("u128", num).base64(), sample);
     });
 
     test("should de/ser custom objects", ()  {
@@ -61,7 +61,7 @@ void main() {
       final setBytes = bcs.ser("Coin", expected);
 
       expect(bcs.de("Coin", fromB64(rustBcs)), expected);
-      expect(setBytes.encode(Encoding.base64), rustBcs);
+      expect(setBytes.base64(), rustBcs);
     });
 
 
@@ -79,7 +79,7 @@ void main() {
       final serialized = bcs.ser("vector<u8>", arr);
 
       expect(deserialized.length, 1000);
-      expect(serialized.encode(Encoding.base64), largebcsVec());
+      expect(serialized.base64(), largebcsVec());
     });
 
     test("should de/ser enums", () {
@@ -157,7 +157,7 @@ void main() {
       final setBytes = bcs.ser("Coin", expected, options);
 
       expect(bcs.de("Coin", fromB64(rustBcs)), expected);
-      expect(setBytes.encode(Encoding.base64), rustBcs);
+      expect(setBytes.base64(), rustBcs);
     });
 
     test("should error when attempting to grow beyond the allowed size", () {

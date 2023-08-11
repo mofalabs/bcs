@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
 
   dynamic serde(BCS bcs, type, data) {
-    final ser = bcs.ser(type, data).encode(Encoding.hex);
+    final ser = bcs.ser(type, data).hex();
     final de = bcs.de(type, ser, Encoding.hex);
     return de;
   }
@@ -36,7 +36,7 @@ void main() {
       final bcs =  BCS(getSuiMoveConfig());
       final _sr = bcs
         .ser({ "name": "string", "age": "u8" }, { "name": "Charlie", "age": 10 })
-        .encode(Encoding.hex);
+        .hex();
 
       expect(bcs.hasType("temp-struct"), false);
     });

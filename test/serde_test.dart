@@ -1,16 +1,19 @@
 
+import 'dart:typed_data';
+
 import 'package:bcs/bcs.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
 
   dynamic serde(BCS bcs, type, data) {
-    final ser = bcs.ser(type, data).encode(Encoding.hex);
+    final ser = bcs.ser(type, data).hex();
     final de = bcs.de(type, ser, Encoding.hex);
     return de;
   }
 
   group("BCS: Serde", () {
+
     test("should serialize primtestives in both directions", () {
       final bcs = BCS(getSuiMoveConfig());
 
@@ -22,7 +25,7 @@ void main() {
       expect(serde(bcs, "u32", "10000"),10000);
       expect(serde(bcs, "u256", "10000"),"10000");
 
-      expect(bcs.ser("u256", "100000").encode(Encoding.hex),
+      expect(bcs.ser("u256", "100000").hex(),
         "a086010000000000000000000000000000000000000000000000000000000000"
       );
 
@@ -179,8 +182,6 @@ void main() {
         "version": "u64",
         "digest": "ObjectDigest",
       });
-
-      // console.log('base58', toB64('1Bhh3pU9gLXZhoVxkr5wyg9sX6'));
 
       bcs.registerAlias("ObjectDigest", BCS.STRING);
 
