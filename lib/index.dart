@@ -390,8 +390,8 @@ mixin TypeInterface {
   BcsWriter encode(dynamic data, BcsWriterOptions? options, List<TypeName> typeParams);
   dynamic decode(Uint8List data, List<TypeName> typeParams);
 
-  BcsWriter _encodeRaw(BcsWriter writer, dynamic data, List<TypeName> typeParams, Map<String, TypeName> typeMap);
-  dynamic _decodeRaw(BcsReader reader, List<TypeName> typeParams, Map<String, TypeName> typeMap);
+  BcsWriter encodeRaw(BcsWriter writer, dynamic data, List<TypeName> typeParams, Map<String, TypeName> typeMap);
+  dynamic decodeRaw(BcsReader reader, List<TypeName> typeParams, Map<String, TypeName> typeMap);
 }
 
 typedef BcsWriter EncodeCb(BcsWriter writer, dynamic data, List<TypeName> typeParams, Map<String, TypeName> typeMap);
@@ -420,7 +420,7 @@ class TypeEncodeDecode with TypeInterface {
       size: options?.size ?? 4096, 
       maxSize: options?.maxSize, 
       allocateSize: options?.allocateSize ?? 1024);
-    return _encodeRaw(bcsWriter, data, typeParams, typeMap);
+    return encodeRaw(bcsWriter, data, typeParams, typeMap);
   }
 
   @override
@@ -432,13 +432,13 @@ class TypeEncodeDecode with TypeInterface {
       typeMap[generics[i]] = typeParams[i];
     }
 
-    return _decodeRaw(BcsReader(data), typeParams, typeMap);
+    return decodeRaw(BcsReader(data), typeParams, typeMap);
   }
 
   // these methods should always be used with caution as they require pre-defined
   // reader and writer and mainly exist to allow multi-field (de)serialization;
   @override
-  BcsWriter _encodeRaw(writer, data, typeParams, typeMap) {
+  BcsWriter encodeRaw(writer, data, typeParams, typeMap) {
     if (validateCb(data)) {
       return encodeCb(writer, data, typeParams, typeMap);
     } else {
@@ -447,7 +447,7 @@ class TypeEncodeDecode with TypeInterface {
   }
 
   @override
-  dynamic _decodeRaw(reader, typeParams, typeMap) {
+  dynamic decodeRaw(reader, typeParams, typeMap) {
     return decodeCb(reader, typeParams, typeMap);
   }
 
@@ -868,7 +868,7 @@ class BCS {
           final elementType = typeParams[0];
           final (name, params) = parseTypeName(elementType);
           if (hasType(name)) {
-            return getTypeInterface(name)._encodeRaw(
+            return getTypeInterface(name).encodeRaw(
               writer,
               el,
               params,
@@ -886,7 +886,7 @@ class BCS {
             typeMap[name]
           );
 
-          return getTypeInterface(innerName)._encodeRaw(
+          return getTypeInterface(innerName).encodeRaw(
             writer,
             el,
             innerParams,
@@ -905,7 +905,7 @@ class BCS {
           final elementType = typeParams[0];
           final (name, params) = parseTypeName(elementType);
           if (hasType(name)) {
-            return getTypeInterface(name)._decodeRaw(
+            return getTypeInterface(name).decodeRaw(
               reader,
               params,
               typeMap
@@ -921,7 +921,7 @@ class BCS {
           final (innerName, innerParams) = parseTypeName(
             typeMap[name]
           );
-          getTypeInterface(innerName)._decodeRaw(
+          getTypeInterface(innerName).decodeRaw(
             reader,
             innerParams,
             typeMap
@@ -1041,7 +1041,7 @@ class BCS {
           // If it is -> read the type parameter matching its index.
           // If not - tread as a regular field.
           if (!generics.contains(fieldType)) {
-            getTypeInterface(fieldType)._encodeRaw(
+            getTypeInterface(fieldType).encodeRaw(
               writer,
               data[key],
               fieldParams,
@@ -1054,7 +1054,7 @@ class BCS {
             // If the type from the type parameters already exists
             // and known -> proceed with type decoding.
             if (hasType(name)) {
-              getTypeInterface(name)._encodeRaw(
+              getTypeInterface(name).encodeRaw(
                 writer,
                 data[key],
                 params,
@@ -1073,7 +1073,7 @@ class BCS {
             final (innerName, innerParams) = parseTypeName(
               typeMap[name]
             );
-            getTypeInterface(innerName)._encodeRaw(
+            getTypeInterface(innerName).encodeRaw(
               writer,
               data[key],
               innerParams,
@@ -1098,7 +1098,7 @@ class BCS {
 
           // if it's not a generic
           if (!generics.contains(fieldName)) {
-            result[key] = getTypeInterface(fieldName)._decodeRaw(
+            result[key] = getTypeInterface(fieldName).decodeRaw(
               reader,
               fieldParams,
               typeMap
@@ -1110,7 +1110,7 @@ class BCS {
             // If the type from the type parameters already exists
             // and known -> proceed with type decoding.
             if (hasType(name)) {
-              result[key] = getTypeInterface(name)._decodeRaw(
+              result[key] = getTypeInterface(name).decodeRaw(
                 reader,
                 params,
                 typeMap
@@ -1127,7 +1127,7 @@ class BCS {
             final (innerName, innerParams) = parseTypeName(
               typeMap[name]
             );
-            result[key] = getTypeInterface(innerName)._decodeRaw.call(
+            result[key] = getTypeInterface(innerName).decodeRaw.call(
               reader,
               innerParams,
               typeMap
@@ -1239,7 +1239,7 @@ class BCS {
 
         {
           final (name, params) = parseTypeName(typeOrParam);
-          return getTypeInterface(name)._encodeRaw(
+          return getTypeInterface(name).encodeRaw(
             writer,
             data[key],
             params,
@@ -1270,7 +1270,7 @@ class BCS {
         {
           final (name, params) = parseTypeName(typeOrParam);
           return {
-            invariant: getTypeInterface(name)._decodeRaw(
+            invariant: getTypeInterface(name).decodeRaw(
               reader,
               params,
               typeMap
