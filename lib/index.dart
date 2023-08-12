@@ -379,17 +379,15 @@ typedef bool ValidateCb(dynamic data);
 
 class TypeEncodeDecode with TypeInterface {
   final BCS bcs;
-  final dynamic name;
+  final List<dynamic> generics;
   final EncodeCb encodeCb;
   final DecodeCb decodeCb;
   final ValidateCb validateCb;
 
-  TypeEncodeDecode(this.bcs, this.name, this.encodeCb, this.decodeCb, this.validateCb);
+  TypeEncodeDecode(this.bcs, this.generics, this.encodeCb, this.decodeCb, this.validateCb);
 
   @override
   BcsWriter encode(data, options, typeParams) {
-    final (name, generics) = bcs.parseTypeName(this.name);
-
     final typeMap = <String, dynamic>{};
     for (var i = 0; i < generics.length; i++) {
       typeMap[generics[i]] = typeParams[i];
@@ -404,8 +402,6 @@ class TypeEncodeDecode with TypeInterface {
 
   @override
   dynamic decode(data, typeParams) {
-    final (name, generics) = bcs.parseTypeName(this.name);
-
     final typeMap = <String, dynamic>{};
     for (var i = 0; i < generics.length; i++) {
       typeMap[generics[i]] = typeParams[i];
@@ -421,7 +417,7 @@ class TypeEncodeDecode with TypeInterface {
     if (validateCb(data)) {
       return encodeCb(writer, data, typeParams, typeMap);
     } else {
-      throw ArgumentError("Validation failed for type $name, data: $data");
+      throw ArgumentError("Validation failed for data: $data");
     }
   }
 
@@ -611,9 +607,7 @@ class BCS {
     }
 
     throw ArgumentError(
-      "Incorrect type passed into the '.ser()' function. \n${jsonEncode(
-        type
-      )}"
+      "Incorrect type passed into the '.ser()' function. \n${jsonEncode(type)}"
     );
   }
 
@@ -698,7 +692,7 @@ class BCS {
 
     final (name, generics) = parseTypeName(typeName);
 
-    types[name] = TypeEncodeDecode(this, typeName, encodeCb, decodeCb, validateCb);
+    types[name] = TypeEncodeDecode(this, generics, encodeCb, decodeCb, validateCb);
 
     return this;
   }
@@ -713,6 +707,7 @@ class BCS {
     int length,
     [Encoding encoding = Encoding.hex]
   ) {
+
     switch (encoding) {
       case Encoding.base64:
         return registerType(
