@@ -1,6 +1,7 @@
 /// BCS implementation https://github.com/diem/bcs
 
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -295,9 +296,7 @@ class BcsWriter {
     dynamic Function(BcsWriter writer, dynamic el, int i, int len) cb
   ) {
     writeULEB(vector.length);
-    for (int i = 0; i < vector.length; i++) {
-      cb(this, vector[i], i, vector.length);
-    }
+    List.from(vector).asMap().forEach((i, el) => cb(this, el, i, vector.length));
     return this;
   }
 
