@@ -1,7 +1,6 @@
 /// BCS implementation https://github.com/diem/bcs
 
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -12,14 +11,14 @@ import 'package:flutter/foundation.dart';
 
 const SUI_ADDRESS_LENGTH = 32;
 
-final toB58 = (Uint8List buffer) => base58Encode(buffer);
-final fromB58 = (String str) => base58Decode(str);
+String toB58(Uint8List buffer) => base58Encode(buffer);
+Uint8List fromB58(String str) => base58Decode(str);
 
-final toB64 = (Uint8List buffer) => base64Encode(buffer);
-final fromB64 = (String str) => base64Decode(str);
+String toB64(Uint8List buffer) => base64Encode(buffer);
+Uint8List fromB64(String str) => base64Decode(str);
 
-final toHEX = (Uint8List buffer) => Hex.encode(buffer);
-final fromHEX = (String str) => Hex.decode(str);
+String toHEX(Uint8List buffer) => Hex.encode(buffer);
+Uint8List fromHEX(String str) => Hex.decode(str);
 
 enum Encoding {
   base58, base64, hex
@@ -109,7 +108,7 @@ class BcsReader {
   BigInt read128() {
     final value1 = read64();
     final value2 = read64();
-    final result = value2.toRadixString(16) + value1.toRadixString(16).padLeft(8, '0');
+    final result = value2.toRadixString(16) + value1.toRadixString(16).padLeft(16, '0');
 
     return BigInt.parse(result, radix: 16);
   }
@@ -118,7 +117,7 @@ class BcsReader {
   BigInt read256() {
     final value1 = read128();
     final value2 = read128();
-    final result = value2.toRadixString(16) + value1.toRadixString(16).padLeft(16, '0');
+    final result = value2.toRadixString(16) + value1.toRadixString(16).padLeft(32, '0');
 
     return BigInt.parse(result, radix: 16);
   }
@@ -192,7 +191,7 @@ class BcsWriter {
   late int _maxSize;
   late int _allocateSize;
 
-  BcsWriter({int size = 4096, int? maxSize, int allocateSize = 1024}) {
+  BcsWriter({int size = 1024, int? maxSize, int allocateSize = 1024}) {
     _size = size;
     _maxSize = maxSize ?? size;
     _allocateSize = allocateSize;
@@ -205,7 +204,7 @@ class BcsWriter {
       final nextSize = min(_maxSize, _size + _allocateSize);
       if (requiredSize > nextSize) {
         throw ArgumentError(
-          "Attempting to serialize to BCS, but buffer does not have enough size. Allocated size: ${_size}, Max size: ${_maxSize}, Required size: ${requiredSize}"
+          "Attempting to serialize to BCS, but buffer does not have enough size. Allocated size: $_size, Max size: $_maxSize, Required size: $requiredSize"
         );
       }
 
@@ -548,21 +547,21 @@ class BCS {
     registerVectorType(schema.vectorType);
 
     // Register struct types if they were passed.
-    if (schema.types != null && schema.types!.structs != null) {
+    if (schema.types?.structs != null) {
       for (var item in schema.types!.structs!.entries) {
         registerStructType(item.key, item.value);
       }
     }
 
     // Register enum types if they were passed.
-    if (schema.types != null && schema.types!.enums != null) {
+    if (schema.types?.enums != null) {
       for (var item in schema.types!.enums!.entries) {
         registerEnumType(item.key, item.value);
       }
     }
 
     // Register aliases if they were passed.
-    if (schema.types != null && schema.types!.aliases != null) {
+    if (schema.types?.aliases != null) {
       for (var item in schema.types!.aliases!.entries) {
         registerAlias(item.key, item.value);
       }

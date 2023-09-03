@@ -9,3 +9,7 @@
 # 0.0.3
 
 * Fix: Iterate MappedListIterable
+
+# 0.0.4
+
+* Fix: read128/read256 padLeft
