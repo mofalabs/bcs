@@ -534,7 +534,7 @@ class BCS {
 
 	/// Creates a BcsType that wraps another BcsType which is lazily evaluated. This is useful for creating recursive types.
 	/// A [cb] callback that returns the BcsType.
-	T lazy<T extends BcsType<dynamic, dynamic>>(T Function() cb){
+	static T lazy<T extends BcsType<dynamic, dynamic>>(T Function() cb){
 		return lazyBcsType(cb) as T;
 	}
 }
