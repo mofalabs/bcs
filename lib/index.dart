@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -6,10 +5,10 @@ import 'dart:typed_data';
 import 'package:bcs/bcs_type.dart';
 import 'package:bcs/uleb.dart';
 
-class bcs {
+class BCS {
 	/// Creates a BcsType that can be used to read and write an 8-bit unsigned integer.
 	/// ```dart
-	/// bcs.u8().serialize(255).toBytes() // Uint8List [ 255 ]
+	/// BCS.u8().serialize(255).toBytes() // Uint8List [ 255 ]
   /// ```
 	static BcsType<int, int> u8([BcsTypeOptions<int, int>? options]) {
 		return uIntBcsType(
@@ -24,7 +23,7 @@ class bcs {
 
 	/// Creates a BcsType that can be used to read and write a 16-bit unsigned integer.
 	/// ```dart
-	/// bcs.u16().serialize(65535).toBytes() // Uint8List [ 255, 255 ]
+	/// BCS.u16().serialize(65535).toBytes() // Uint8List [ 255, 255 ]
   /// ```
 	static BcsType<int, int> u16([BcsTypeOptions<int, int>? options]) {
 		return uIntBcsType(
@@ -39,7 +38,7 @@ class bcs {
 
 	/// Creates a BcsType that can be used to read and write a 32-bit unsigned integer.
 	/// ```dart
-	/// bcs.u32().serialize(4294967295).toBytes() // Uint8List [ 255, 255, 255, 255 ]
+	/// BCS.u32().serialize(4294967295).toBytes() // Uint8List [ 255, 255, 255, 255 ]
   /// ```
 	static BcsType<int, int> u32([BcsTypeOptions<int, int>? options]) {
 		return uIntBcsType(
@@ -54,7 +53,7 @@ class bcs {
 
 	/// Creates a BcsType that can be used to read and write a 64-bit unsigned integer.
 	/// ```dart
-	/// bcs.u64().serialize(BigInt.one).toBytes() // Uint8List [ 1, 0, 0, 0, 0, 0, 0, 0 ]
+	/// BCS.u64().serialize(BigInt.one).toBytes() // Uint8List [ 1, 0, 0, 0, 0, 0, 0, 0 ]
   /// ```
 	static BcsType<String, BigInt> u64([BcsTypeOptions<String, BigInt>? options]) {
 		return bigUIntBcsType(
@@ -69,7 +68,7 @@ class bcs {
 
 	/// Creates a BcsType that can be used to read and write a 128-bit unsigned integer.
 	/// ```dart
-	/// bcs.u128().serialize(BigInt.one).toBytes() // Uint8List [ 1, ..., 0 ]
+	/// BCS.u128().serialize(BigInt.one).toBytes() // Uint8List [ 1, ..., 0 ]
   /// ```
 	static BcsType<String, BigInt> u128([BcsTypeOptions<String, BigInt>? options]) {
 		return bigUIntBcsType(
@@ -84,7 +83,7 @@ class bcs {
 
 	/// Creates a BcsType that can be used to read and write a 256-bit unsigned integer.
 	/// ```dart
-	/// bcs.u256().serialize(BigInt.one).toBytes() // Uint8List [ 1, ..., 0 ]
+	/// BCS.u256().serialize(BigInt.one).toBytes() // Uint8List [ 1, ..., 0 ]
   /// ```
 	static BcsType<String, BigInt> u256([BcsTypeOptions<String, BigInt>? options]) {
 		return bigUIntBcsType(
@@ -99,7 +98,7 @@ class bcs {
 
 	/// Creates a BcsType that can be used to read and write boolean values.
 	/// ```dart
-	/// bcs.boolType().serialize(true).toBytes() // Uint8List [ 1 ]
+	/// BCS.boolType().serialize(true).toBytes() // Uint8List [ 1 ]
   /// ```
 	static BcsType<bool, bool> boolType([BcsTypeOptions<bool, bool>? options]) {
 		return fixedSizeBcsType<bool, bool>(
@@ -118,7 +117,7 @@ class bcs {
 
 	/// Creates a BcsType that can be used to read and write unsigned LEB encoded integers
 	/// ```dart
-	/// bcs.uleb128().serialize(1).toBytes()  // Uint8List [ 1 ]
+	/// BCS.uleb128().serialize(1).toBytes()  // Uint8List [ 1 ]
   /// ```
 	static BcsType<int, int> uleb128([BcsTypeOptions<int, int>? options]) {
 		return dynamicSizeBcsType<int, int>(
@@ -134,7 +133,7 @@ class bcs {
 	/// Creates a BcsType representing a fixed length byte array.
 	/// The number of bytes this types represents [size]
 	/// ```dart
-	/// bcs.bytes(3).serialize(Uint8List.fromList([1, 2, 3]) // Uint8List [1, 2, 3]
+	/// BCS.bytes(3).serialize(Uint8List.fromList([1, 2, 3]) // Uint8List [1, 2, 3]
   /// ```
 	static BcsType<Uint8List, Uint8List> bytes(int size, [BcsTypeOptions<Uint8List, Uint8List>? options]) {
 		return fixedSizeBcsType<Uint8List, Uint8List>(
@@ -160,7 +159,7 @@ class bcs {
 
 	/// Creates a BcsType that can ser/de string values. Strings will be UTF-8 encoded
 	/// ```dart
-	/// bcs.string().serialize('a').toBytes() // Uint8List [ 1, 97 ]
+	/// BCS.string().serialize('a').toBytes() // Uint8List [ 1, 97 ]
   /// ```
 	static BcsType<String, String> string([BcsTypeOptions<String, String>? options]) {
 		return stringLikeBcsType<String, String>(
@@ -175,7 +174,7 @@ class bcs {
 	/// The [size] is number of elements in the array.
 	/// The [type] is BcsType of each element in the array.
 	/// ```dart
-	/// bcs.fixedArray(3, bcs.u8()).serialize([1, 2, 3]).toBytes() // Uint8List [ 1, 2, 3 ]
+	/// BCS.fixedArray(3, BCS.u8()).serialize([1, 2, 3]).toBytes() // Uint8List [ 1, 2, 3 ]
   /// ```
 	static BcsType<List<T>, List<Input>> fixedArray<T, Input>(
 		int size,
@@ -211,8 +210,8 @@ class bcs {
 	/// Creates a BcsType representing an optional value.
 	/// The [type] is BcsType of the optional value.
 	/// ```dart
-	/// bcs.option(bcs.u8()).serialize(null).toBytes() // Uint8List [ 0 ]
-	/// bcs.option(bcs.u8()).serialize(1).toBytes() // Uint8List [ 1, 1 ]
+	/// BCS.option(BCS.u8()).serialize(null).toBytes() // Uint8List [ 0 ]
+	/// BCS.option(BCS.u8()).serialize(1).toBytes() // Uint8List [ 1, 1 ]
   /// ```
 	static BcsType<T?, Input?> option<T, Input>(BcsType<T?, Input?> type) {
 		return enumType("Option<${type.name}>", {
@@ -240,7 +239,7 @@ class bcs {
 	/// Creates a BcsType representing a variable length vector of a given type.
 	/// The [type] is BcsType of each element in the vector.
 	/// ```dart
-	/// bcs.vector(bcs.u8()).toBytes([1, 2, 3]) // Uint8List [ 3, 1, 2, 3 ]
+	/// BCS.vector(BCS.u8()).toBytes([1, 2, 3]) // Uint8List [ 3, 1, 2, 3 ]
   /// ```
 	static BcsType<List<T>, List<Input>> vector<T, Input>(
 		BcsType<T, Input> type,
@@ -274,7 +273,7 @@ class bcs {
 	/// Creates a BcsType representing a tuple of a given set of types.
 	/// The [types] is BcsTypes for each element in the tuple
 	/// ```dart
-	/// final tuple = bcs.tuple([bcs.u8(), bcs.string(), bcs.boolType()])
+	/// final tuple = BCS.tuple([BCS.u8(), BCS.string(), BCS.boolType()])
 	/// tuple.serialize([1, 'a', true]).toBytes() // Uint8List [ 1, 1, 97, 1 ]
   /// ```
 	static BcsType tuple(
@@ -344,9 +343,9 @@ class bcs {
 	/// The [name] of the struct.
 	/// The [fields] of the struct. The order of the fields affects how data is serialized and deserialized
 	/// ```dart
-	/// final struct = bcs.struct('MyStruct', {
-	///   "a": bcs.u8(),
-	///   "b": bcs.string(),
+	/// final struct = BCS.struct('MyStruct', {
+	///   "a": BCS.u8(),
+	///   "b": BCS.string(),
 	/// })
 	/// struct.serialize({ "a": 1, "b": 'a' }).toBytes() // Uint8List [ 1, 1, 97 ]
   /// ```
@@ -424,9 +423,9 @@ class bcs {
 	/// The [values] of the enum. The order of the values affects how data is serialized and deserialized.
 	/// null can be used to represent a variant with no data.
 	/// ```dart
-	/// final enumType = bcs.enumType('MyEnum', {
-	///  "A": bcs.u8(),
-	///  "B": bcs.string(),
+	/// final enumType = BCS.enumType('MyEnum', {
+	///  "A": BCS.u8(),
+	///  "B": BCS.string(),
 	///  "C": null,
 	/// });
 	/// enumType.serialize({ "A": 1 }).toBytes() // Uint8List [ 0, 1 ]
@@ -488,11 +487,11 @@ class bcs {
 	/// The [keyType] of the BcsType.
 	/// The [valueType] of the BcsType.
 	/// ```dart
-	/// final map = bcs.map(bcs.u8(), bcs.string())
+	/// final map = BCS.map(BCS.u8(), BCS.string())
 	/// map.serialize({2: 'a'}).toBytes() // Uint8List [ 1, 2, 1, 97 ]
   /// ```
 	static BcsType<Map, Map> map<K, V, InputK, InputV>(BcsType<K, InputK> keyType, BcsType<V, InputV> valueType) {
-		return bcs.vector(bcs.tuple([keyType, valueType])).transform(
+		return BCS.vector(BCS.tuple([keyType, valueType])).transform(
 			name: "Map<${keyType.name}, ${valueType.name}>",
 			input: (value) {
         final list = [];
@@ -516,9 +515,9 @@ class bcs {
 	/// The [names] of the generic parameters.
 	/// A [cb] callback that returns the generic type.
 	/// ```dart
-	/// final MyStruct = bcs.generic(['T'], (List<BcsType> T) => bcs.struct('MyStruct', { "inner": T[0] }))
-	/// MyStruct([bcs.u8()]).serialize({ "inner": 1 }).toBytes() // Uint8List [ 1 ]
-	/// MyStruct([bcs.string()]).serialize({ "inner": 'a' }).toBytes() // Uint8List [ 1, 97 ]
+	/// final MyStruct = BCS.generic(['T'], (List<BcsType> T) => BCS.struct('MyStruct', { "inner": T[0] }))
+	/// MyStruct([BCS.u8()]).serialize({ "inner": 1 }).toBytes() // Uint8List [ 1 ]
+	/// MyStruct([BCS.string()]).serialize({ "inner": 'a' }).toBytes() // Uint8List [ 1, 97 ]
   /// ```
 	static BcsType Function(T) generic<T extends List<BcsType>>(
 		List<String> names,

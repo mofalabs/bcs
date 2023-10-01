@@ -6,7 +6,7 @@ void main() {
 
   group("BCS: Generics", () {
     test("should handle generics", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerEnumType("base::Option<T>", {
         "none": null,
@@ -17,7 +17,7 @@ void main() {
     });
 
     test("should handle nested generics", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerEnumType("base::Option<T>", {
         "none": null,

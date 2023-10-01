@@ -11,14 +11,14 @@ void main() {
   group('BCS: Primitives', () {
 
     test("should de/ser primitives: u8", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       expect(bcs.de("u8", fromB64("AQ==")), 1);
       expect(bcs.de("u8", fromB64("AA==")), 0);
     });
 
     test("should ser/de u64", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       const exp = "AO/Nq3hWNBI=";
       const num = "1311768467750121216";
@@ -29,7 +29,7 @@ void main() {
     });
 
     test("should ser/de u128", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       const sample = "AO9ld3CFjD48AAAAAAAAAA==";
       final num = BigInt.parse("1111311768467750121216");
@@ -41,12 +41,12 @@ void main() {
     });
 
     test("should de/ser custom objects", ()  {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerStructType("Coin", {
-        "value": BCS.U64,
-        "owner": BCS.STRING,
-        "is_locked": BCS.BOOL,
+        "value": LegacyBCS.U64,
+        "owner": LegacyBCS.STRING,
+        "is_locked": LegacyBCS.BOOL,
       });
 
       const rustBcs = "gNGxBWAAAAAOQmlnIFdhbGxldCBHdXkA";
@@ -64,7 +64,7 @@ void main() {
 
 
     test("should de/ser vectors", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       // Rust-bcs generated vector with 1000 u8 elements (FF)
       final sample = largebcsVec();
@@ -81,7 +81,7 @@ void main() {
     });
 
     test("should de/ser enums", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerStructType("Coin", { "value": "u64" });
       bcs.registerEnumType("Enum", {
@@ -114,7 +114,7 @@ void main() {
         addressLength: 16,
         addressEncoding: Encoding.hex
       );
-      final bcs = BCS(bcsConfig);
+      final bcs = LegacyBCS(bcsConfig);
 
       // Move Kitty example:
       // Wallet { kitties: vector<Kitty>, owner: address }
@@ -136,12 +136,12 @@ void main() {
     });
 
     test("should support growing size", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerStructType("Coin", {
-        "value": BCS.U64,
-        "owner": BCS.STRING,
-        "is_locked": BCS.BOOL,
+        "value": LegacyBCS.U64,
+        "owner": LegacyBCS.STRING,
+        "is_locked": LegacyBCS.BOOL,
       });
 
       const rustBcs = "gNGxBWAAAAAOQmlnIFdhbGxldCBHdXkA";
@@ -159,12 +159,12 @@ void main() {
     });
 
     test("should error when attempting to grow beyond the allowed size", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerStructType("Coin", {
-        "value": BCS.U64,
-        "owner": BCS.STRING,
-        "is_locked": BCS.BOOL,
+        "value": LegacyBCS.U64,
+        "owner": LegacyBCS.STRING,
+        "is_locked": LegacyBCS.BOOL,
       });
 
       final expected = {

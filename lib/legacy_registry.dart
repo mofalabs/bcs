@@ -32,7 +32,7 @@ typedef dynamic DecodeCb(BcsReader reader, List<TypeName> typeParams, Map<String
 typedef bool ValidateCb(dynamic data);
 
 class TypeEncodeDecode with TypeInterface {
-  final BCS bcs;
+  final LegacyBCS bcs;
   final List<dynamic> generics;
   final EncodeCb encodeCb;
   final DecodeCb decodeCb;
@@ -146,7 +146,7 @@ class BcsConfig {
 }
 
 /// BCS implementation for Move types and few additional built-ins.
-class BCS {
+class LegacyBCS {
   // Prefefined types constants
   static const String U8 = 'u8';
   static const String U16 = 'u16';
@@ -181,22 +181,22 @@ class BCS {
     return "bcs-struct-${++counter}";
   }
 
-  factory BCS.fromBCS(BCS bcs) {
-    final tmp = BCS._();
+  factory LegacyBCS.fromBCS(LegacyBCS bcs) {
+    final tmp = LegacyBCS._();
     tmp.schema = bcs.schema;
     tmp.types = Map.of(bcs.types);
     return tmp;
   }
 
-  BCS._();
+  LegacyBCS._();
 
   /// Construct a BCS instance with a prepared schema.
-  BCS(BcsConfig scheme) {
+  LegacyBCS(BcsConfig scheme) {
     schema = scheme;
 
     // Register address type under key 'address'.
     registerAddressType(
-      BCS.ADDRESS,
+      LegacyBCS.ADDRESS,
       schema.addressLength,
       schema.addressEncoding ?? Encoding.hex
     );
@@ -256,7 +256,7 @@ class BCS {
     // Quick serialization without registering the type in the main struct.
     if (type is StructTypeDefinition) {
       final key = tempKey();
-      final temp = BCS.fromBCS(this);
+      final temp = LegacyBCS.fromBCS(this);
       return temp.registerStructType(key, type).ser(key, data, options);
     }
 
@@ -292,7 +292,7 @@ class BCS {
 
     // Deserialize without registering a type using a temporary clone.
     if (type is StructTypeDefinition) {
-      final temp = BCS.fromBCS(this);
+      final temp = LegacyBCS.fromBCS(this);
       final key = tempKey();
       return temp.registerStructType(key, type).de(key, data, encoding);
     }
@@ -315,7 +315,7 @@ class BCS {
   /// bcs.registerAlias('ObjectDigest', BCS.BASE58);
   /// final b58_digest = bcs.de('ObjectDigest', '<digest_bytes>', Encoding.base64);
   /// ```
-  BCS registerAlias(String name, String forType) {
+  LegacyBCS registerAlias(String name, String forType) {
     types[name] = forType;
     return this;
   }
@@ -336,7 +336,7 @@ class BCS {
   /// );
   /// expect(bcs.ser('number_string', '12345').toBytes(), [5,1,2,3,4,5]);
   /// ```
-  BCS registerType(
+  LegacyBCS registerType(
     TypeName typeName,
     EncodeCb encodeCb,
     DecodeCb decodeCb,
@@ -356,7 +356,7 @@ class BCS {
   /// bcs.registerAddressType('address', SUI_ADDRESS_LENGTH);
   /// final addr = bcs.de('address', 'c3aca510c785c7094ac99aeaa1e69d493122444df50bb8a99dfa790c654a79af', Encoding.hex);
   /// ```
-  BCS registerAddressType(
+  LegacyBCS registerAddressType(
     String name,
     int length,
     [Encoding encoding = Encoding.hex]
@@ -393,7 +393,7 @@ class BCS {
   /// final array = bcs.de('vector<u8>', '06010203040506', Encoding.hex); // [1,2,3,4,5,6];
   /// final again = bcs.ser('vector<u8>', [1,2,3,4,5,6]).hex();
   /// ```
-  BCS registerVectorType(String typeName) {
+  LegacyBCS registerVectorType(String typeName) {
     final (name, params) = parseTypeName(typeName);
     if (params.length > 1) {
       throw ArgumentError("Vector can have only one type parameter; got " + name);
@@ -514,7 +514,7 @@ class BCS {
   ///
   /// expect(test_set.toBytes(), rust_bcs_str);
   /// ```
-  BCS registerStructType(
+  LegacyBCS registerStructType(
     TypeName typeName,
     StructTypeDefinition fields
   ) {
@@ -693,7 +693,7 @@ class BCS {
   /// bcs.ser('MyEnum', { 'single': { 'value': 10000000 } }).toBytes();
   /// bcs.ser('MyEnum', { 'multi': [ { 'value': 1 }, { 'value': 2 } ] });
   /// ```
-  BCS registerEnumType(
+  LegacyBCS registerEnumType(
     TypeName typeName,
     EnumTypeDefinition variants
   ) {
@@ -889,9 +889,9 @@ class BCS {
 /// Register the base set of primitive and common types.
 /// Is called in the `BCS` constructor automatically but can
 /// be ignored if the `withPrimitives` argument is not set.
-void registerPrimitives(BCS bcs) {
+void registerPrimitives(LegacyBCS bcs) {
   bcs.registerType(
-    BCS.U8,
+    LegacyBCS.U8,
     (writer, data, _, __) {
       return writer.write8(int.parse(data.toString()));
     },
@@ -902,7 +902,7 @@ void registerPrimitives(BCS bcs) {
   );
 
   bcs.registerType(
-    BCS.U16,
+    LegacyBCS.U16,
     (writer, data, _, __) {
       return writer.write16(int.parse(data.toString()));
     },
@@ -913,7 +913,7 @@ void registerPrimitives(BCS bcs) {
   );
 
   bcs.registerType(
-    BCS.U32,
+    LegacyBCS.U32,
     (writer, data, _, __) {
       return writer.write32(int.parse(data.toString()));
     },
@@ -924,7 +924,7 @@ void registerPrimitives(BCS bcs) {
   );
 
   bcs.registerType(
-    BCS.U64,
+    LegacyBCS.U64,
     (writer, data, _, __) {
       return writer.write64(BigInt.parse(data.toString()));
     },
@@ -934,7 +934,7 @@ void registerPrimitives(BCS bcs) {
   );
 
   bcs.registerType(
-    BCS.U128,
+    LegacyBCS.U128,
     (writer, data, _, __) {
       return writer.write128(BigInt.parse(data.toString()));
     },
@@ -944,7 +944,7 @@ void registerPrimitives(BCS bcs) {
   );
 
   bcs.registerType(
-    BCS.U256,
+    LegacyBCS.U256,
     (writer, data, _, __) {
       return writer.write256(BigInt.parse(data.toString()));
     },
@@ -954,7 +954,7 @@ void registerPrimitives(BCS bcs) {
   );
 
   bcs.registerType(
-    BCS.BOOL,
+    LegacyBCS.BOOL,
     (writer, data, _, __) {
       return writer.write8(data == true ? 1 : 0);
     },
@@ -964,7 +964,7 @@ void registerPrimitives(BCS bcs) {
   );
 
   bcs.registerType(
-    BCS.STRING,
+    LegacyBCS.STRING,
     (writer, data, _, __) =>
       writer.writeVec(data.split(""), (writer, el, a, b) {
         writer.write8(utf8.encode(el)[0]);
@@ -979,7 +979,7 @@ void registerPrimitives(BCS bcs) {
   );
 
   bcs.registerType(
-    BCS.HEX,
+    LegacyBCS.HEX,
     (writer, data, _, __) {
       return writer.writeVec(fromHEX(data), (writer, el, _, __) =>
         writer.write8(el)
@@ -992,7 +992,7 @@ void registerPrimitives(BCS bcs) {
   );
 
   bcs.registerType(
-    BCS.BASE58,
+    LegacyBCS.BASE58,
     (writer, data, _, __) {
       return writer.writeVec(fromB58(data), (writer, el, _, __) =>
         writer.write8(el)
@@ -1005,7 +1005,7 @@ void registerPrimitives(BCS bcs) {
   );
 
   bcs.registerType(
-    BCS.BASE64,
+    LegacyBCS.BASE64,
     (writer, data, _, __) {
       return writer.writeVec(fromB64(data), (writer, el, _, __) =>
         writer.write8(el)

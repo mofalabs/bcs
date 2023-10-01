@@ -8,7 +8,7 @@ void main() {
 
   group("BCS: Encodings", () {
     test("should de/ser hex, base58 and base64", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       expect(bcs.de("u8", "AA==", Encoding.base64), 0);
       expect(bcs.de("u8", "00", Encoding.hex), 0);
@@ -27,12 +27,12 @@ void main() {
     });
 
     test("should de/ser native encoding types", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerStructType("TestStruct", {
-        "hex": BCS.HEX,
-        "base58": BCS.BASE58,
-        "base64": BCS.BASE64,
+        "hex": LegacyBCS.HEX,
+        "base58": LegacyBCS.BASE58,
+        "base64": LegacyBCS.BASE64,
       });
 
       final hex_str = toHEX(Uint8List.fromList([1, 2, 3, 4, 5, 6]));
