@@ -1,11 +1,11 @@
 
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:bcs/bcs_type.dart';
 import 'package:bcs/uleb.dart';
+import 'package:bcs/utils.dart';
 
 class bcs {
 	/**
@@ -117,7 +117,7 @@ class bcs {
 			write: (value, writer) => writer.write8(value == true ? 1 : 0),
 			validate: (value) {
 				options?.validate?.call(value);
-				if (value is! Bool) {
+				if (value is! bool) {
 					throw ArgumentError("Expected boolean, found ${value.runtimeType}");
 				}
 			},
@@ -294,16 +294,36 @@ class bcs {
 	 * const tuple = bcs.tuple([bcs.u8(), bcs.string(), bcs.bool()])
 	 * tuple.serialize([1, 'a', true]).toBytes() // Uint8Array [ 1, 1, 97, 1 ]
 	 */
-	static BcsType<dynamic, dynamic> tuple<Types extends List<BcsType<dynamic, dynamic>>>(
-		Types types,
-    [BcsTypeOptions<dynamic, dynamic>? options]
+	static BcsType tuple(
+		List<BcsType> types,
+    [BcsTypeOptions? options]
 	) {
-		return BcsType<dynamic, dynamic>(
+		return BcsType(
 			name: "(${types.map((t) => t.name).join(', ')})",
 			serializedSize: (values, [_]) {
 				int total = 0;
 				for (int i = 0; i < types.length; i++) {
-					final size = types[i].serializedSize(values[i]);
+          final value = values[i];
+          final type = types[i];
+          int? size;
+          if (type is BcsType<int, int>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<String, BigInt>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<String, String>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<bool, bool>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<Uint8List, Uint8List>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<List<int>, List<int>>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<List<dynamic>, List<dynamic>>) {
+            size = type.serializedSize(value);
+          } else {
+					  size = type.serializedSize(value);
+          }
+
 					if (size == null) {
 						return null;
 					}
@@ -363,7 +383,26 @@ class bcs {
 				for (var entry in canonicalOrder) {
           final field = entry.key;
           final type = entry.value;
-					final size = type?.serializedSize(values[field]);
+          final value = values[field];
+          int? size;
+          if (type is BcsType<int, int>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<String, BigInt>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<String, String>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<bool, bool>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<Uint8List, Uint8List>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<List<int>, List<int>>) {
+            size = type.serializedSize(value);
+          } else if (type is BcsType<List<dynamic>, List<dynamic>>) {
+            size = type.serializedSize(value);
+          } else {
+					  size = type?.serializedSize(values[field]);
+          }
+
 					if (size == null) {
 						return null;
 					}
@@ -474,16 +513,21 @@ class bcs {
 	 * const map = bcs.map(bcs.u8(), bcs.string())
 	 * map.serialize(new Map([[2, 'a']])).toBytes() // Uint8Array [ 1, 2, 1, 97 ]
 	 */
-	map<K, V, InputK, InputV>(BcsType<K, InputK> keyType, BcsType<V, InputV> valueType) {
+	static BcsType map<K, V, InputK, InputV>(BcsType<K, InputK> keyType, BcsType<V, InputV> valueType) {
 		return bcs.vector(bcs.tuple([keyType, valueType])).transform(
 			name: "Map<${keyType.name}, ${valueType.name}>",
-			input: (Map<InputK, InputV> value) {
-        return value.entries.toList();
+			input: (value) {
+        final list = [];
+        final valmap = (value as Map);
+        for (var entry in valmap.entries) {
+          list.add([entry.key, entry.value]);
+        }
+        return list;
 			},
 			output: (value) {
 				final result = <K, V>{};
 				for (var entry in value) {
-					result.addEntries(entry);
+					result.addAll({entry[0]: entry[1]});
 				}
 				return result;
 			},
@@ -500,9 +544,9 @@ class bcs {
 	 * MyStruct(bcs.u8()).serialize({ inner: 1 }).toBytes() // Uint8Array [ 1 ]
 	 * MyStruct(bcs.string()).serialize({ inner: 'a' }).toBytes() // Uint8Array [ 1, 97 ]
 	 */
-	dynamic generic<Names extends List<String>, Type extends BcsType<dynamic, dynamic>>(
-		Names names,
-		Type Function(dynamic types) cb
+	static BcsType Function(List<BcsType>) generic(
+		List<String> names,
+		BcsType Function(List<BcsType>) cb
 	) {
 		return (types) {
 			return cb(types).transform(
