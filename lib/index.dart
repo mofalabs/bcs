@@ -106,12 +106,7 @@ class BCS {
 			size: 1,
 			read: (reader) => reader.read8() == 1,
 			write: (value, writer) => writer.write8(value == true ? 1 : 0),
-			validate: (value) {
-				options?.validate?.call(value);
-				if (value is! bool) {
-					throw ArgumentError("Expected boolean, found ${value.runtimeType}");
-				}
-			},
+			validate: options?.validate
 		);
 	}
 
@@ -142,14 +137,11 @@ class BCS {
 			read: (reader) => reader.readBytes(size),
 			write: (value, writer) {
 				for (int i = 0; i < size; i++) {
-					writer.write8(value[i] ?? 0);
+					writer.write8(value[i]);
 				}
 			},
 			validate: (value) {
 				options?.validate?.call(value);
-				if (value is! Iterable) {
-					throw ArgumentError("Expected array, found ${value.runtimeType}");
-				}
 				if (value.length != size) {
 					throw ArgumentError("Expected array of length $size, found ${value.length}");
 				}
@@ -227,11 +219,7 @@ class BCS {
 					return { "Some": value };
 				},
 				output: (value) {
-					if (value["Some"] != null) {
-						return value["Some"];
-					}
-
-					return null;
+					return value["Some"];
 				},
 			);
 	}
@@ -261,12 +249,7 @@ class BCS {
 					type.write(item, writer);
 				}
 			},
-			validate: (value) {
-				options?.validate?.call(value);
-				if (value is! Iterable) {
-					throw ArgumentError("Expected array, found ${value.runtimeType}");
-				}
-			}
+			validate: options?.validate
 		);
 	}
 
@@ -432,7 +415,7 @@ class BCS {
 	/// enumType.serialize({ "B": 'a' }).toBytes() // Uint8List [ 1, 1, 97 ]
 	/// enumType.serialize({ "C": true }).toBytes() // Uint8List [ 2 ]
   /// ```
-	static BcsType<Map, Map> enumType<T extends Map<String, BcsType<dynamic, dynamic>?>>(
+	static BcsType<Map, Map> enumType<T extends Map<String, BcsType?>>(
 		String name,
 		T values,
 		[BcsTypeOptions<dynamic, dynamic>? options]
@@ -466,9 +449,6 @@ class BCS {
 			},
 			validate: (value) {
 				options?.validate?.call(value);
-				if (value == null || value is! Map) {
-					throw ArgumentError("Expected object, found ${value.runtimeType}");
-				}
 
 				final keys = value.keys.toList();
 				if (keys.length != 1) {
@@ -490,7 +470,7 @@ class BCS {
 	/// final map = BCS.map(BCS.u8(), BCS.string())
 	/// map.serialize({2: 'a'}).toBytes() // Uint8List [ 1, 2, 1, 97 ]
   /// ```
-	static BcsType<Map, Map> map<K, V, InputK, InputV>(BcsType<K, InputK> keyType, BcsType<V, InputV> valueType) {
+	static BcsType<Map, Map> map(BcsType keyType, BcsType valueType) {
 		return BCS.vector(BCS.tuple([keyType, valueType])).transform(
 			name: "Map<${keyType.name}, ${valueType.name}>",
 			input: (value) {
@@ -501,7 +481,7 @@ class BCS {
         return list;
 			},
 			output: (value) {
-				final result = <K, V>{};
+				final result = {};
 				for (var entry in value) {
 					result.addAll({entry[0]: entry[1]});
 				}

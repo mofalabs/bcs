@@ -113,7 +113,8 @@ BcsType<T, Input> fixedSizeBcsType<T, Input>({
     name: name,
     read: read,
     write: write,
-		serializedSize: (_, [__]) => size
+		serializedSize: (_, [__]) => size,
+    validate: validate
 	);
 }
 
@@ -225,12 +226,13 @@ BcsType<T, Input> dynamicSizeBcsType<T, Input>({
 	type = BcsType<T, Input>(
     name: name,
     read: read,
-		serialize: serialize,
 		write: (value, writer) {
 			for (var byte in type.serialize(value).toBytes()) {
 				writer.write8(byte);
 			}
 		},
+		serialize: serialize,
+    validate: validate
 	);
 
 	return type;
