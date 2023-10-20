@@ -42,76 +42,76 @@ void main() {
       testType('u32 16777215', BCS.u32(), 16777215, 'ffffff00');
       testType('u32 16777216', BCS.u32(), 16777216, '00000001');
       testType('u32 4294967295', BCS.u32(), 4294967295, 'ffffffff');
-      testType('u64 0', BCS.u64(), BigInt.zero, '0000000000000000', '0');
-      testType('u64 1', BCS.u64(), BigInt.one, '0100000000000000', '1');
-      testType('u64 255', BCS.u64(), BigInt.from(255), 'ff00000000000000', '255');
-      testType('u64 256', BCS.u64(), BigInt.from(256), '0001000000000000', '256');
-      testType('u64 65535', BCS.u64(), BigInt.from(65535), 'ffff000000000000', '65535');
-      testType('u64 65536', BCS.u64(), BigInt.from(65536), '0000010000000000', '65536');
-      testType('u64 16777215', BCS.u64(), BigInt.from(16777215), 'ffffff0000000000', '16777215');
-      testType('u64 16777216', BCS.u64(), BigInt.from(16777216), '0000000100000000', '16777216');
-      testType('u64 4294967295', BCS.u64(), BigInt.from(4294967295), 'ffffffff00000000', '4294967295');
-      testType('u64 4294967296', BCS.u64(), BigInt.from(4294967296), '0000000001000000', '4294967296');
-      testType('u64 1099511627775', BCS.u64(), BigInt.from(1099511627775), 'ffffffffff000000', '1099511627775');
-      testType('u64 1099511627776', BCS.u64(), BigInt.from(1099511627776), '0000000000010000', '1099511627776');
+      testType('u64 0', BCS.u64(), BigInt.zero, '0000000000000000', BigInt.parse('0'));
+      testType('u64 1', BCS.u64(), BigInt.one, '0100000000000000', BigInt.parse('1'));
+      testType('u64 255', BCS.u64(), BigInt.from(255), 'ff00000000000000', BigInt.parse('255'));
+      testType('u64 256', BCS.u64(), BigInt.from(256), '0001000000000000', BigInt.parse('256'));
+      testType('u64 65535', BCS.u64(), BigInt.from(65535), 'ffff000000000000', BigInt.parse('65535'));
+      testType('u64 65536', BCS.u64(), BigInt.from(65536), '0000010000000000', BigInt.parse('65536'));
+      testType('u64 16777215', BCS.u64(), BigInt.from(16777215), 'ffffff0000000000', BigInt.parse('16777215'));
+      testType('u64 16777216', BCS.u64(), BigInt.from(16777216), '0000000100000000', BigInt.parse('16777216'));
+      testType('u64 4294967295', BCS.u64(), BigInt.from(4294967295), 'ffffffff00000000', BigInt.parse('4294967295'));
+      testType('u64 4294967296', BCS.u64(), BigInt.from(4294967296), '0000000001000000', BigInt.parse('4294967296'));
+      testType('u64 1099511627775', BCS.u64(), BigInt.from(1099511627775), 'ffffffffff000000', BigInt.parse('1099511627775'));
+      testType('u64 1099511627776', BCS.u64(), BigInt.from(1099511627776), '0000000000010000', BigInt.parse('1099511627776'));
       testType(
         'u64 281474976710655',
         BCS.u64(),
         BigInt.from(281474976710655),
         'ffffffffffff0000',
-        '281474976710655',
+        BigInt.from(281474976710655),
       );
       testType(
         'u64 281474976710656',
         BCS.u64(),
         BigInt.from(281474976710656),
         '0000000000000100',
-        '281474976710656',
+        BigInt.from(281474976710656),
       );
       testType(
         'u64 72057594037927935',
         BCS.u64(),
         BigInt.from(72057594037927935),
         'ffffffffffffff00',
-        '72057594037927935',
+        BigInt.from(72057594037927935),
       );
       testType(
         'u64 72057594037927936',
         BCS.u64(),
         BigInt.from(72057594037927936),
         '0000000000000001',
-        '72057594037927936',
+        BigInt.from(72057594037927936),
       );
       testType(
         'u64 18446744073709551615',
         BCS.u64(),
-        BigInt.parse("18446744073709551615"),
+        BigInt.parse('18446744073709551615'),
         'ffffffffffffffff',
-        '18446744073709551615',
+        BigInt.parse('18446744073709551615'),
       );
-      testType('u128 0', BCS.u128(), BigInt.zero, '00000000000000000000000000000000', '0');
-      testType('u128 1', BCS.u128(), BigInt.one, '01000000000000000000000000000000', '1');
-      testType('u128 255', BCS.u128(), BigInt.from(255), 'ff000000000000000000000000000000', '255');
+      testType('u128 0', BCS.u128(), BigInt.zero, '00000000000000000000000000000000', BigInt.from(0));
+      testType('u128 1', BCS.u128(), BigInt.one, '01000000000000000000000000000000', BigInt.from(1));
+      testType('u128 255', BCS.u128(), BigInt.from(255), 'ff000000000000000000000000000000', BigInt.from(255));
       testType(
         'u128 18446744073709551615',
         BCS.u128(),
         BigInt.parse("18446744073709551615"),
         'ffffffffffffffff0000000000000000',
-        '18446744073709551615',
+        BigInt.parse('18446744073709551615'),
       );
       testType(
         'u128 18446744073709551615',
         BCS.u128(),
         BigInt.parse("18446744073709551616"),
         '00000000000000000100000000000000',
-        '18446744073709551616',
+        BigInt.parse('18446744073709551616'),
       );
       testType(
         'u128 340282366920938463463374607431768211455',
         BCS.u128(),
         BigInt.parse("340282366920938463463374607431768211455"),
         'ffffffffffffffffffffffffffffffff',
-        '340282366920938463463374607431768211455',
+        BigInt.parse('340282366920938463463374607431768211455'),
       );
 
     });
@@ -129,11 +129,11 @@ void main() {
 	});
 
 	group('fixedVector', () {
-		testType('fixedVector([])', BCS.fixedArray(0, BCS.u8()), <int>[], '');
-		testType('vector([1, 2, 3])', BCS.fixedArray(3, BCS.u8()), [1, 2, 3], '010203');
+		testType('fixedVector([])', BCS.array(0, BCS.u8()), <int>[], '');
+		testType('vector([1, 2, 3])', BCS.array(3, BCS.u8()), [1, 2, 3], '010203');
 		testType(
 			'fixedVector([1, null, 3])',
-			BCS.fixedArray(3, BCS.option(BCS.u8())),
+			BCS.array(3, BCS.option(BCS.u8())),
 			[1, null, 3],
 			// eslint-disable-next-line no-useless-concat
 			'0101' + '00' + '0103',
@@ -293,7 +293,7 @@ void main() {
     expect(BCS.uleb128().serialize(1).toBytes(), [1]);
     expect(BCS.bytes(3).serialize(Uint8List.fromList([1, 2, 3])).toBytes(), [1, 2, 3]);
     expect(BCS.string().serialize('a').toBytes(), [1, 97]);
-    expect(BCS.fixedArray(3, BCS.u8()).serialize([1, 2, 3]).toBytes(), [1, 2, 3]);
+    expect(BCS.array(3, BCS.u8()).serialize([1, 2, 3]).toBytes(), [1, 2, 3]);
     expect(BCS.option(BCS.u8()).serialize(null).toBytes(), [0]);
     expect(BCS.option(BCS.u8()).serialize(1).toBytes(), [1, 1]);
     expect(BCS.vector(BCS.u8()).serialize([1, 2, 3]).toBytes(), [3, 1, 2, 3]);

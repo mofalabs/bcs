@@ -3,13 +3,13 @@ import 'dart:typed_data';
 import 'package:bcs/bs58.dart';
 import 'package:bcs/hex.dart';
 
-String toB58(Uint8List buffer) => base58Encode(buffer);
+String toB58(List<int> buffer) => base58Encode(buffer);
 Uint8List fromB58(String str) => base58Decode(str);
 
-String toB64(Uint8List buffer) => base64Encode(buffer);
+String toB64(List<int> buffer) => base64Encode(buffer);
 Uint8List fromB64(String str) => base64Decode(str);
 
-String toHEX(Uint8List buffer) => Hex.encode(buffer);
+String toHEX(List<int> buffer) => Hex.encode(buffer);
 Uint8List fromHEX(String str) => Hex.decode(str);
 
 

@@ -167,7 +167,7 @@ BcsType<int, int> uIntBcsType({
 	);
 }
 
-BcsType<String, BigInt> bigUIntBcsType({
+BcsType<BigInt, BigInt> bigUIntBcsType({
   required String name,
 	required int size,
 	required String readMethod,
@@ -175,17 +175,17 @@ BcsType<String, BigInt> bigUIntBcsType({
 	required BigInt maxValue,
   void Function(BigInt value)? validate
 }) {
-  return fixedSizeBcsType<String, BigInt>(
+  return fixedSizeBcsType<BigInt, BigInt>(
     name: name,
     size: size,
 		read: (reader) {
       switch (readMethod) {
         case "read64":
-          return reader.read64().toString();
+          return reader.read64();
         case "read128":
-          return reader.read128().toString();
+          return reader.read128();
         case "read256":
-          return reader.read256().toString();
+          return reader.read256();
         default:
           throw ArgumentError.value(readMethod);
       }

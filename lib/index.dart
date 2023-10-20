@@ -55,7 +55,7 @@ class BCS {
 	/// ```dart
 	/// BCS.u64().serialize(BigInt.one).toBytes() // Uint8List [ 1, 0, 0, 0, 0, 0, 0, 0 ]
   /// ```
-	static BcsType<String, BigInt> u64([BcsTypeOptions<String, BigInt>? options]) {
+	static BcsType<BigInt, BigInt> u64([BcsTypeOptions<String, BigInt>? options]) {
 		return bigUIntBcsType(
 			name: 'u64',
 			readMethod: 'read64',
@@ -70,7 +70,7 @@ class BCS {
 	/// ```dart
 	/// BCS.u128().serialize(BigInt.one).toBytes() // Uint8List [ 1, ..., 0 ]
   /// ```
-	static BcsType<String, BigInt> u128([BcsTypeOptions<String, BigInt>? options]) {
+	static BcsType<BigInt, BigInt> u128([BcsTypeOptions<String, BigInt>? options]) {
 		return bigUIntBcsType(
 			name: 'u128',
 			readMethod: 'read128',
@@ -85,7 +85,7 @@ class BCS {
 	/// ```dart
 	/// BCS.u256().serialize(BigInt.one).toBytes() // Uint8List [ 1, ..., 0 ]
   /// ```
-	static BcsType<String, BigInt> u256([BcsTypeOptions<String, BigInt>? options]) {
+	static BcsType<BigInt, BigInt> u256([BcsTypeOptions<String, BigInt>? options]) {
 		return bigUIntBcsType(
 			name: 'u256',
 			readMethod: 'read256',
@@ -166,9 +166,9 @@ class BCS {
 	/// The [size] is number of elements in the array.
 	/// The [type] is BcsType of each element in the array.
 	/// ```dart
-	/// BCS.fixedArray(3, BCS.u8()).serialize([1, 2, 3]).toBytes() // Uint8List [ 1, 2, 3 ]
+	/// BCS.array(3, BCS.u8()).serialize([1, 2, 3]).toBytes() // Uint8List [ 1, 2, 3 ]
   /// ```
-	static BcsType<List<T>, List<Input>> fixedArray<T, Input>(
+	static BcsType<List<T>, List<Input>> array<T, Input>(
 		int size,
 		BcsType<T, Input> type,
 		[BcsTypeOptions<List<T>, List<Input>>? options]
