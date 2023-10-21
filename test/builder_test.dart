@@ -129,11 +129,11 @@ void main() {
 	});
 
 	group('fixedVector', () {
-		testType('fixedVector([])', BCS.array(0, BCS.u8()), <int>[], '');
-		testType('vector([1, 2, 3])', BCS.array(3, BCS.u8()), [1, 2, 3], '010203');
+		testType('fixedVector([])', BCS.fixedArray(0, BCS.u8()), <int>[], '');
+		testType('vector([1, 2, 3])', BCS.fixedArray(3, BCS.u8()), [1, 2, 3], '010203');
 		testType(
 			'fixedVector([1, null, 3])',
-			BCS.array(3, BCS.option(BCS.u8())),
+			BCS.fixedArray(3, BCS.option(BCS.u8())),
 			[1, null, 3],
 			// eslint-disable-next-line no-useless-concat
 			'0101' + '00' + '0103',
@@ -293,7 +293,7 @@ void main() {
     expect(BCS.uleb128().serialize(1).toBytes(), [1]);
     expect(BCS.bytes(3).serialize(Uint8List.fromList([1, 2, 3])).toBytes(), [1, 2, 3]);
     expect(BCS.string().serialize('a').toBytes(), [1, 97]);
-    expect(BCS.array(3, BCS.u8()).serialize([1, 2, 3]).toBytes(), [1, 2, 3]);
+    expect(BCS.fixedArray(3, BCS.u8()).serialize([1, 2, 3]).toBytes(), [1, 2, 3]);
     expect(BCS.option(BCS.u8()).serialize(null).toBytes(), [0]);
     expect(BCS.option(BCS.u8()).serialize(1).toBytes(), [1, 1]);
     expect(BCS.vector(BCS.u8()).serialize([1, 2, 3]).toBytes(), [3, 1, 2, 3]);

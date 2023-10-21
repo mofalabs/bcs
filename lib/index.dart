@@ -166,9 +166,9 @@ class BCS {
 	/// The [size] is number of elements in the array.
 	/// The [type] is BcsType of each element in the array.
 	/// ```dart
-	/// BCS.array(3, BCS.u8()).serialize([1, 2, 3]).toBytes() // Uint8List [ 1, 2, 3 ]
+	/// BCS.fixedArray(3, BCS.u8()).serialize([1, 2, 3]).toBytes() // Uint8List [ 1, 2, 3 ]
   /// ```
-	static BcsType<List<T>, List<Input>> array<T, Input>(
+	static BcsType<List<T>, List<Input>> fixedArray<T, Input>(
 		int size,
 		BcsType<T, Input> type,
 		[BcsTypeOptions<List<T>, List<Input>>? options]
@@ -273,7 +273,7 @@ class BCS {
           int? size;
           if (type is BcsType<int, int>) {
             size = type.serializedSize(value);
-          } else if (type is BcsType<String, BigInt>) {
+          } else if (type is BcsType<BigInt, BigInt>) {
             size = type.serializedSize(value);
           } else if (type is BcsType<String, String>) {
             size = type.serializedSize(value);
@@ -350,7 +350,7 @@ class BCS {
           int? size;
           if (type is BcsType<int, int>) {
             size = type.serializedSize(value);
-          } else if (type is BcsType<String, BigInt>) {
+          } else if (type is BcsType<BigInt, BigInt>) {
             size = type.serializedSize(value);
           } else if (type is BcsType<String, String>) {
             size = type.serializedSize(value);
