@@ -908,6 +908,10 @@ class BCS {
           );
         }
 
+        if (data is! Map) {
+          data = data.toJson();
+        }
+
         // follow the canonical order when serializing
         for (String key in canonicalOrder) {
           if (!data.containsKey(key)) {
