@@ -13,3 +13,7 @@
 # 0.0.4
 
 * Fix: read128/read256 padLeft
+
+# 0.0.5
+
+* Fix: Convert Object to Map
