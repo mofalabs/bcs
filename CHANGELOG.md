@@ -17,3 +17,7 @@
 # 0.0.5
 
 * Fix: Convert Object to Map
+
+# 0.0.6
+
+* Feat: Register Fixed Array Type

@@ -1,6 +1,6 @@
 ## BCS - Binary Canonical Serialization
 
-[![Pub](https://img.shields.io/badge/pub-v0.0.5-blue)](https://pub.dev/packages/bcs)
+[![Pub](https://img.shields.io/badge/pub-v0.0.6-blue)](https://pub.dev/packages/bcs)
 
 This library implements [Binary Canonical Serialization (BCS)](https://github.com/diem/bcs) in Dart.
 
