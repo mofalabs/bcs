@@ -157,6 +157,15 @@ class BcsReader {
     }
     return result;
   }
+
+  List<dynamic> readFixedArray(int size, dynamic Function(BcsReader reader, int i, int length) cb) {
+    int length = size;
+    final result = <dynamic>[];
+    for (int i = 0; i < length; i++) {
+      result.add(cb(this, i, length));
+    }
+    return result;
+  }
 }
 
 
@@ -296,6 +305,16 @@ class BcsWriter {
   ) {
     writeULEB(vector.length);
     List.from(vector).asMap().forEach((i, el) => cb(this, el, i, vector.length));
+    return this;
+  }
+
+  BcsWriter writeFixedArray(
+    dynamic vector,
+    int? size,
+    dynamic Function(BcsWriter writer, dynamic el, int i, int len) cb
+  ) {
+    final lst = List.from(vector);
+    lst.sublist(0, size ?? lst.length).asMap().forEach((i, el) => cb(this, el, i, vector.length));
     return this;
   }
 
@@ -458,6 +477,8 @@ class BcsConfig {
   /// In Move: `vector<T>` or `vector`.
   String vectorType;
 
+  String? fixedArrayType;
+
   /// Address length. Varies depending on a platform and
   /// has to be specified for the `address` type.
   int addressLength;
@@ -482,6 +503,7 @@ class BcsConfig {
   BcsConfig({
     required this.vectorType,
     required this.addressLength,
+    this.fixedArrayType,
     this.addressEncoding,
     this.genericSeparators,
     this.types,
@@ -500,6 +522,7 @@ class BCS {
   static const String U256 = 'u256';
   static const String BOOL = 'bool';
   static const String VECTOR = 'vector';
+  static const String FixedArray = 'array';
   static const String ADDRESS = 'address';
   static const String STRING = 'string';
   static const String HEX = "hex-string";
@@ -545,6 +568,10 @@ class BCS {
       schema.addressEncoding ?? Encoding.hex
     );
     registerVectorType(schema.vectorType);
+
+    if (schema.fixedArrayType != null) {
+      registerFixedArrayType(schema.fixedArrayType!);
+    }
 
     // Register struct types if they were passed.
     if (schema.types?.structs != null) {
@@ -784,6 +811,97 @@ class BCS {
       },
       (reader, typeParams, typeMap) { 
         return reader.readVec((reader, _, __) {
+          if (typeParams.isEmpty) {
+            throw ArgumentError(
+              "Incorrect number of type parameters passed to a vector '$typeName'"
+            );
+          }
+
+          final elementType = typeParams[0];
+          final (name, params) = parseTypeName(elementType);
+          if (hasType(name)) {
+            return getTypeInterface(name).decodeRaw(
+              reader,
+              params,
+              typeMap
+            );
+          }
+
+          if (!(typeMap.containsKey(name))) {
+            throw ArgumentError(
+              "Unable to find a matching type definition for $name in vector; make sure you passed a generic"
+            );
+          }
+
+          final (innerName, innerParams) = parseTypeName(
+            typeMap[name]
+          );
+          getTypeInterface(innerName).decodeRaw(
+            reader,
+            innerParams,
+            typeMap
+          );
+        });
+      }
+    );
+  }
+
+  /// Register custom fixed array type inside the bcs.
+  ///
+  /// ```dart
+  /// bcs.registerFixedArrayType('array<T>'); // generic registration
+  /// final array = bcs.de('array<u8, 6>', '06010203040506', Encoding.hex); // [1,2,3,4,5,6];
+  /// final again = bcs.ser('array<u8>', [1,2,3,4,5,6]).hex();
+  /// ```
+  BCS registerFixedArrayType(String typeName) {
+    final (name, params) = parseTypeName(typeName);
+    if (params.length > 1) {
+      throw ArgumentError("Vector can have only one type parameter; got " + name);
+    }
+
+    return registerType(
+      typeName,
+      (writer, data, typeParams, typeMap) {
+        int? size = typeParams.length > 1 ? int.parse(typeParams[1].toString()) : null;
+        return writer.writeFixedArray(data, size, (writer, el, _, __) {
+          if (typeParams.isEmpty) {
+            throw ArgumentError(
+              "Incorrect number of type parameters passed a to vector '$typeName'"
+            );
+          }
+
+          final elementType = typeParams[0];
+          final (name, params) = parseTypeName(elementType);
+          if (hasType(name)) {
+            return getTypeInterface(name).encodeRaw(
+              writer,
+              el,
+              params,
+              typeMap
+            );
+          }
+
+          if (!(typeMap.containsKey(name))) {
+            throw ArgumentError(
+              "Unable to find a matching type definition for $name in vector; make sure you passed a generic"
+            );
+          }
+
+          final (innerName, innerParams) = parseTypeName(
+            typeMap[name]
+          );
+
+          return getTypeInterface(innerName).encodeRaw(
+            writer,
+            el,
+            innerParams,
+            typeMap
+          );
+        });
+      },
+      (reader, typeParams, typeMap) { 
+        final size = int.parse(typeParams[1].toString());
+        return reader.readFixedArray(size, (reader, _, __) {
           if (typeParams.isEmpty) {
             throw ArgumentError(
               "Incorrect number of type parameters passed to a vector '$typeName'"
@@ -1418,7 +1536,8 @@ BcsConfig getRustConfig() {
 
 BcsConfig getSuiMoveConfig() {
   return BcsConfig(
-    vectorType: "vector",
+    vectorType: BCS.VECTOR,
+    fixedArrayType: BCS.FixedArray,
     addressLength: SUI_ADDRESS_LENGTH,
     genericSeparators: ("<", ">"),
     addressEncoding: Encoding.hex
