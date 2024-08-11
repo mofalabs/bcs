@@ -1,11 +1,12 @@
 
 
-import 'package:bcs/bcs.dart';
+import 'package:bcs/legacy_bcs.dart';
+import 'package:bcs/utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
 
-  dynamic serde(BCS bcs, dynamic type, dynamic data) {
+  dynamic serde(LegacyBCS bcs, dynamic type, dynamic data) {
     final ser = bcs.ser(type, data).hex();
     final de = bcs.de(type, ser, Encoding.hex);
     return de;
@@ -13,13 +14,13 @@ void main() {
 
   group("BCS: Nested temp object", () {
     test("should support object as a type", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
       const value = { "name": { "boop": "beep", "beep": "100" } };
 
       bcs.registerStructType("Beep", {
         "name": {
-          "boop": BCS.STRING,
-          "beep": BCS.U64,
+          "boop": LegacyBCS.STRING,
+          "beep": LegacyBCS.U64,
         },
       });
 
@@ -27,7 +28,7 @@ void main() {
     });
 
     test("should support enum invariant as an object", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
       const value = {
         "user": {
           "name": "Bob",
@@ -38,8 +39,8 @@ void main() {
       bcs.registerEnumType("AccountType", {
         "system": null,
         "user": {
-          "name": BCS.STRING,
-          "age": BCS.U8,
+          "name": LegacyBCS.STRING,
+          "age": LegacyBCS.U8,
         },
       });
 
@@ -47,7 +48,7 @@ void main() {
     });
 
     test("should support a nested schema", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
       const value = {
         "some": {
           "account": {
@@ -66,12 +67,12 @@ void main() {
         "none": null,
         "some": {
           "account": {
-            "user": BCS.STRING,
-            "age": BCS.U8,
+            "user": LegacyBCS.STRING,
+            "age": LegacyBCS.U8,
           },
           "meta": {
             "status": {
-              "active": BCS.BOOL,
+              "active": LegacyBCS.BOOL,
             },
           },
         },

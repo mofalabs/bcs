@@ -1,12 +1,11 @@
 
-import 'dart:typed_data';
-
-import 'package:bcs/bcs.dart';
+import 'package:bcs/legacy_bcs.dart';
+import 'package:bcs/utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
 
-  dynamic serde(BCS bcs, type, data) {
+  dynamic serde(LegacyBCS bcs, type, data) {
     final ser = bcs.ser(type, data).hex();
     final de = bcs.de(type, ser, Encoding.hex);
     return de;
@@ -15,7 +14,7 @@ void main() {
   group("BCS: Serde", () {
 
     test("should serialize primtestives in both directions", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       expect(serde(bcs, "u8", "0"), 0);
       expect(serde(bcs, "u8", "200"),200);
@@ -48,7 +47,7 @@ void main() {
     });
 
     test("should serde structs", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerAddressType("address", SUI_ADDRESS_LENGTH, Encoding.hex);
       bcs.registerStructType("Beep", { "id": "address", "value": "u64" });
@@ -68,7 +67,7 @@ void main() {
     });
 
     test("should serde enums", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
       bcs.registerAddressType("address", SUI_ADDRESS_LENGTH, Encoding.hex);
       bcs.registerEnumType("Enum", {
         "with_value": "address",
@@ -86,7 +85,7 @@ void main() {
     });
 
     test("should serde vectors natively", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       {
         final value = ["0", "255", "100"];
@@ -138,7 +137,7 @@ void main() {
     });
 
     test("should structs and nested enums", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerStructType("User", { "age": "u64", "name": "string" });
       bcs.registerStructType("Coin<T>", { "balance": "Balance<T>" });
@@ -176,14 +175,14 @@ void main() {
     });
 
     test("should serde SuiObjectRef", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
       bcs.registerStructType("SuiObjectRef", {
         "objectId": "address",
         "version": "u64",
         "digest": "ObjectDigest",
       });
 
-      bcs.registerAlias("ObjectDigest", BCS.STRING);
+      bcs.registerAlias("ObjectDigest", LegacyBCS.STRING);
 
       const value = {
         "objectId":

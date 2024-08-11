@@ -1,10 +1,11 @@
 
-import 'package:bcs/bcs.dart';
+import 'package:bcs/legacy_bcs.dart';
+import 'package:bcs/utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
 
-  dynamic serde(BCS bcs, type, data) {
+  dynamic serde(LegacyBCS bcs, type, data) {
     final ser = bcs.ser(type, data).hex();
     final de = bcs.de(type, ser, Encoding.hex);
     return de;
@@ -12,22 +13,22 @@ void main() {
 
     group("BCS: Config", () {
         test("should work wtesth Rust config", () {
-            final bcs = BCS(getRustConfig());
+            final bcs = LegacyBCS(getRustConfig());
             final value = ["beep", "boop", "beep"];
             expect(serde(bcs, "Vec<string>", value),value);
         });
 
         test("should work wtesth Sui Move config", () {
-            final bcs = BCS(getSuiMoveConfig());
+            final bcs = LegacyBCS(getSuiMoveConfig());
             final value = ["beep", "boop", "beep"];
             expect(serde(bcs, "vector<string>", value),value);
         });
 
         test("should fork config", () {
-            final bcs_v1 = BCS(getSuiMoveConfig());
+            final bcs_v1 = LegacyBCS(getSuiMoveConfig());
             bcs_v1.registerStructType("User", { "name": "string" });
 
-            final bcs_v2 = BCS.fromBCS(bcs_v1);
+            final bcs_v2 = LegacyBCS.fromBCS(bcs_v1);
             bcs_v2.registerStructType("Worker", { "user": "User", "experience": "u64" });
 
             expect(bcs_v1.hasType("Worker"), false);
@@ -35,7 +36,7 @@ void main() {
         });
 
         test("should work wtesth custom config", () {
-            final bcs = BCS(BcsConfig(
+            final bcs = LegacyBCS(BcsConfig(
               genericSeparators: ("[", "]"),
               addressLength: 1,
               addressEncoding: Encoding.hex,

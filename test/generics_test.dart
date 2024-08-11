@@ -1,12 +1,13 @@
 
-import 'package:bcs/bcs.dart';
+import 'package:bcs/legacy_bcs.dart';
+import 'package:bcs/utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
 
   group("BCS: Generics", () {
     test("should handle generics", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerEnumType("base::Option<T>", {
         "none": null,
@@ -17,7 +18,7 @@ void main() {
     });
 
     test("should handle nested generics", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
 
       bcs.registerEnumType("base::Option<T>", {
         "none": null,

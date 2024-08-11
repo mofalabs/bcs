@@ -1,10 +1,11 @@
 
-import 'package:bcs/bcs.dart';
+import 'package:bcs/legacy_bcs.dart';
+import 'package:bcs/utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
 
-  dynamic serde(BCS bcs, type, data) {
+  dynamic serde(LegacyBCS bcs, type, data) {
     final ser = bcs.ser(type, data).hex();
     final de = bcs.de(type, ser, Encoding.hex);
     return de;
@@ -12,7 +13,7 @@ void main() {
 
   group("BCS: Inline struct defintestions", () {
     test("should de/serialize inline defintestion", () {
-      final bcs =  BCS(getSuiMoveConfig());
+      final bcs =  LegacyBCS(getSuiMoveConfig());
       const value = {
         "t1": "Adam",
         "t2": "1000",
@@ -33,7 +34,7 @@ void main() {
     });
 
     test("should not contain a trace of the temp struct", () {
-      final bcs =  BCS(getSuiMoveConfig());
+      final bcs =  LegacyBCS(getSuiMoveConfig());
       final _sr = bcs
         .ser({ "name": "string", "age": "u8" }, { "name": "Charlie", "age": 10 })
         .hex();
@@ -42,7 +43,7 @@ void main() {
     });
 
     test("should avoid duplicate key", () {
-      final bcs =  BCS(getSuiMoveConfig());
+      final bcs =  LegacyBCS(getSuiMoveConfig());
 
       bcs.registerStructType("temp-struct", { "a0": "u8" });
 

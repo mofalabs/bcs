@@ -1,11 +1,12 @@
 
 
-import 'package:bcs/bcs.dart';
+import 'package:bcs/legacy_bcs.dart';
+import 'package:bcs/utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
 
-  dynamic serde(BCS bcs, type, data) {
+  dynamic serde(LegacyBCS bcs, type, data) {
     final ser = bcs.ser(type, data).hex();
     final de = bcs.de(type, ser, Encoding.hex);
     return de;
@@ -13,14 +14,14 @@ void main() {
 
   group("BCS: Array type", () {
     test("should support destructured type name in ser/de", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
       const values = ["this is a string"];
 
-      expect(serde(bcs, ["vector", BCS.STRING], values), values);
+      expect(serde(bcs, ["vector", LegacyBCS.STRING], values), values);
     });
 
     test("should support destructured type name in struct", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
       const value = {
           "name": 'Bob',
           "role": 'Admin',
@@ -31,13 +32,13 @@ void main() {
       };
 
       bcs.registerStructType("Metadata", {
-        "lastLogin": BCS.STRING,
-        "isActive": BCS.BOOL
+        "lastLogin": LegacyBCS.STRING,
+        "isActive": LegacyBCS.BOOL
       });
 
       bcs.registerStructType(["User", "T"], {
-        "name": BCS.STRING,
-        "role": BCS.STRING,
+        "name": LegacyBCS.STRING,
+        "role": LegacyBCS.STRING,
         "meta": "T"
       });
 
@@ -45,7 +46,7 @@ void main() {
     });
 
     test("should support destructured type name in enum", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
       const values = { "some": ["this is a string"] };
 
       bcs.registerEnumType(["Option", "T"], {
@@ -57,7 +58,7 @@ void main() {
     });
 
     test("should solve nested generic issue", () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
       const value = {
         "contents": {
           "content_one": { "key": "A", "value": "B" },
@@ -88,7 +89,7 @@ void main() {
 
     // More complicated invariant of the test case above
     test('should support arrays in global generics', () {
-      final bcs = BCS(getSuiMoveConfig());
+      final bcs = LegacyBCS(getSuiMoveConfig());
       bcs.registerEnumType(["Option", "T"], {
         "none": null,
         "some": "T"
