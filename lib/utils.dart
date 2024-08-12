@@ -4,6 +4,10 @@ import 'dart:typed_data';
 import 'package:bcs/bs58.dart';
 import 'package:bcs/hex.dart';
 
+enum Encoding {
+  base58, base64, hex
+}
+
 String toB58(Uint8List buffer) => base58Encode(buffer);
 Uint8List fromB58(String str) => base58Decode(str);
 
@@ -12,10 +16,6 @@ Uint8List fromB64(String str) => base64Decode(str);
 
 String toHEX(Uint8List buffer) => Hex.encode(buffer);
 Uint8List fromHEX(String str) => Hex.decode(str);
-
-enum Encoding {
-  base58, base64, hex
-}
 
 String encodeStr(Uint8List data, Encoding encoding) {
   switch (encoding) {
