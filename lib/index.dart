@@ -301,7 +301,8 @@ class Bcs {
           '\$kind': entry.key,
         };
       },
-      write: (value, writer) {
+      write: (val, writer) {
+        final value = val is Map ? val : val.toJson();
         final entry = value.entries.firstWhere(
           (entry) => values.containsKey(entry.key) && entry.key != '\$kind',
         );
