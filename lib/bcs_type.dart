@@ -179,7 +179,8 @@ BcsType<int, dynamic> uIntBcsType({
           throw ArgumentError('Invalid read type $readMethod');
       }
     },
-    validate: (value) {
+    validate: (val) {
+      final value = int.parse(val.toString());
       if (value < 0 || value > maxValue) {
         throw ArgumentError('Invalid $name value: $value. Expected value in range 0-$maxValue');
       }
@@ -232,7 +233,7 @@ BcsType<BigInt, dynamic> bigUIntBcsType({
       if (value < BigInt.zero || value > maxValue) {
         throw ArgumentError('Invalid $name value: $value. Expected value in range 0-$maxValue');
       }
-      validate?.call(val);
+      validate?.call(value);
     },
   );
 }
@@ -261,7 +262,7 @@ BcsType<String, dynamic> stringLikeBcsType({
   required String name,
   required Uint8List Function(String) toBytes,
   required String Function(Uint8List) fromBytes,
-  int Function(String)? serializedSize,
+  int? Function(dynamic, {BcsWriterOptions? options})? serializedSize,
   void Function(String)? validate,
 }) {
   return BcsType<String, dynamic>(
@@ -286,8 +287,11 @@ BcsType<String, dynamic> stringLikeBcsType({
       result.setRange(size.length, result.length, bytes);
       return result;
     },
-    serializedSize: serializedSize != null ? (value, {BcsWriterOptions? options}) => serializedSize(value) : null,
+    serializedSize: serializedSize,
     validate: (value) {
+      if (value is! String) {
+        throw ArgumentError("Invalid $name value: $value. Expected string");
+      }
       validate?.call(value);
     },
   );

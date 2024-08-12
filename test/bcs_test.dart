@@ -1,5 +1,3 @@
-import 'package:bcs/index.dart';
-import 'package:bcs/utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:bcs/bcs.dart';
