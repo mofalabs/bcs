@@ -245,14 +245,14 @@ class Bcs {
     );
   }
 
-  static BcsType<Map<String, dynamic>, Map<String, dynamic>> struct(
+  static BcsType<Map<String, dynamic>, dynamic> struct(
     String name,
     Map<String, BcsType> fields,
     [BcsTypeOptions<Map<String, dynamic>, Map<String, dynamic>>? options]
   ) {
     final canonicalOrder = fields.entries.toList();
 
-    return BcsType<Map<String, dynamic>, Map<String, dynamic>>(
+    return BcsType<Map<String, dynamic>, dynamic>(
       name: name,
       serializedSize: (values, {BcsWriterOptions? options}) {
         int total = 0;
@@ -309,8 +309,9 @@ class Bcs {
         writer.writeULEB(index);
         canonicalOrder[index].value?.write(entry.value, writer);
       },
-      validate: (value) {
-        options?.validate?.call(value);
+      validate: (val) {
+        options?.validate?.call(val);
+        final value = val is Map ? val : val.toJson();
         final keys = value.keys.where((k) => k != '\$kind' && values.containsKey(k)).toList();
         if (keys.length != 1) {
           throw ArgumentError('Expected object with one key, but found ${keys.length} for type $name');
