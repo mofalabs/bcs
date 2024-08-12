@@ -245,14 +245,14 @@ class Bcs {
     );
   }
 
-  static BcsType<Map<String, dynamic>, dynamic> struct(
+  static BcsType<Map<String, dynamic>, Map<String, dynamic>> struct(
     String name,
     Map<String, BcsType> fields,
     [BcsTypeOptions<Map<String, dynamic>, Map<String, dynamic>>? options]
   ) {
     final canonicalOrder = fields.entries.toList();
 
-    return BcsType<Map<String, dynamic>, dynamic>(
+    return BcsType<Map<String, dynamic>, Map<String, dynamic>>(
       name: name,
       serializedSize: (values, {BcsWriterOptions? options}) {
         int total = 0;
