@@ -272,7 +272,8 @@ class Bcs {
         }
         return result;
       },
-      write: (value, writer) {
+      write: (val, writer) {
+        final value = val is Map ? val : val.toJson();
         for (final entry in canonicalOrder) {
           entry.value.write(value[entry.key], writer);
         }
