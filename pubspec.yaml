@@ -1,7 +1,7 @@
 name: bcs
 description: Binary Canonical Serialization (BCS) in Dart.
-version: 0.0.6
-repository: https://github.com/0xmove/bcs
+version: 0.1.0
+repository: https://github.com/mofalabs/bcs
 
 environment:
   sdk: ">=3.0.3 <4.0.0"
