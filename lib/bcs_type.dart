@@ -17,8 +17,6 @@ class BcsTypeOptions<T, Input> {
 }
 
 class BcsType<T, Input> {
-  T? _inferType;
-  Input? _inferInput;
   final String name;
   final T Function(BcsReader) read;
   final int? Function(Input, {BcsWriterOptions? options}) serializedSize;
