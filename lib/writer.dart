@@ -27,7 +27,7 @@ class BcsWriter {
 
   BcsWriter({int size = 1024, int? maxSize, int allocateSize = 1024}) {
     _size = size;
-    _maxSize = maxSize ?? size;
+    _maxSize = maxSize ?? MAX_U32_NUMBER.toInt();
     _allocateSize = allocateSize;
     _dataView = ByteData.sublistView(Uint8List(size));
   }

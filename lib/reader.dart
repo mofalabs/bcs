@@ -67,31 +67,24 @@ class BcsReader {
 
   /// Read U64 value from the buffer and shift cursor by 8.
   BigInt read64() {
-    final value1 = read32();
-    final value2 = read32();
-    final result = value2.toRadixString(16) + value1.toRadixString(16).padLeft(8, '0');
-
-    return BigInt.parse(result, radix: 16);
+    final low = read32();
+    final high = read32();
+    return (BigInt.from(high) << 32) | BigInt.from(low);
   }
 
   /// Read U128 value from the buffer and shift cursor by 16.
   BigInt read128() {
-    final value1 = read64();
-    final value2 = read64();
-    final result = value2.toRadixString(16) + value1.toRadixString(16).padLeft(16, '0');
-
-    return BigInt.parse(result, radix: 16);
+    final low = read64();
+    final high = read64();
+    return (high << 64) | low;
   }
 
   /// Read U256 value from the buffer and shift cursor by 32.
   BigInt read256() {
-    final value1 = read128();
-    final value2 = read128();
-    final result = value2.toRadixString(16) + value1.toRadixString(16).padLeft(32, '0');
-
-    return BigInt.parse(result, radix: 16);
+    final low = read128();
+    final high = read128();
+    return (high << 128) | low;
   }
-
 
   /// Read `num` number of bytes from the buffer and shift cursor by `num`.
   Uint8List readBytes(int num) {
