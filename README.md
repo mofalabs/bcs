@@ -9,433 +9,254 @@ This library implements [Binary Canonical Serialization (BCS)](https://github.co
 ```dart
 import 'package:bcs/bcs.dart';
 
-final bcs = BCS(getSuiMoveConfig());
+// define UID as a 32-byte array, then add a transform to/from hex strings
+final UID = Bcs.fixedArray(32, Bcs.u8()).transform(
+  input: (id) => fromHEX(id.toString()),
+  output: (id) => toHEX(Uint8List.fromList(id)),
+);
 
-// registering types so we can use them
-bcs.registerAlias('UID', BCS.ADDRESS);
-bcs.registerEnumType('Option<T>', {
-	'none': null,
-	'some': 'T',
-});
-bcs.registerStructType('Coin', {
-	'id': 'UID',
-	'value': BCS.U64,
+final Coin = Bcs.struct('Coin', {
+  "id": UID,
+  "value": Bcs.u64(),
 });
 
 // deserialization: BCS bytes into Coin
-final bcsBytes = bcs
-	.ser('Coin', {
-		'id': '0000000000000000000000000000000000000000000000000000000000000001',
-		'value': BigInt.from(1000000),
-	})
-	.toBytes();
-final coin = bcs.de('Coin', bcsBytes, Encoding.hex);
+final bcsBytes = Coin.serialize({
+  "id": '0000000000000000000000000000000000000000000000000000000000000001',
+  "value": BigInt.from(1000000),
+}).toBytes();
+
+final coin = Coin.parse(bcsBytes);
 
 // serialization: Object into bytes - an Option with <T = Coin>
-final data = bcs.ser('Option<Coin>', { 'some': coin }).hex();
-print(data);
+final hex = Bcs.option(Coin).serialize(coin).toHex();
+
+print(hex);
 ```
 
 ## Description
 
-BCS defines the way the data is serialized, and the result contains no type information. To be able to serialize the data and later deserialize, a schema has to be created (based on the built-in primitives, such as `address` or `u64`). There's no tip in the serialized bytes on what they mean, so the receiving part needs to know how to treat it.
+BCS defines the way the data is serialized, and the serialized results contains no type information.
+To be able to serialize the data and later deserialize it, a schema has to be created (based on the
+built-in primitives, such as `string` or `u64`). There are no type hints in the serialized bytes on
+what they mean, so the schema used for decoding must match the schema used to encode the data.
 
-## Configuration
+The `bcs` library can be used to define schemas that can serialize and deserialize BCS
+encoded data.
 
-BCS constructor is configurable for the target. The following parameters are available for custom configuration:
+## Basic types
 
-| parameter           | required | description                                                               |
-| ------------------- | -------- | ------------------------------------------------------------------------- |
-| `vectorType`        | +        | Defines the type of the vector (`vector<T>` in SuiMove, `Vec<T>` in Rust) |
-| `addressLength`     | +        | Length of the built-in `address` type. 20 for SuiMove, 32 for Core Move   |
-| `addressEncoding`   | -        | Custom encoding for addresses - "hex" or "base64"                         |
-| `genericSeparators` | -        | Generic type parameters syntax, default is `('<', '>')`                   |
-| `types`             | -        | Define enums, structs and aliases at initialization stage                 |
-| `withPrimitives`    | -        | Whether to register primitive types (`true` by default)                   |
+bcs supports a number of built in base types that can be combined to create more complex types. The
+following table lists the primitive types available:
+
+| Method                | Dart Type      | Dart Input Type                | Description                                                                 |
+| --------------------- | ------------ | ---------------------------- | --------------------------------------------------------------------------- |
+| `bool`                | `bool`    | `bool`                    | Boolean type (converts to `true` / `false`)                                 |
+| `u8`, `u16`, `u32`    | `int`     | `int`                     | Unsigned Integer types                                                      |
+| `u64`, `u128`, `u256` | `BigInt`     | `BigInt` | Unsigned Integer types, decoded as `string` to allow for JSON serialization |
+| `uleb128`             | `int`     | `int`                     | Unsigned LEB128 integer type                                                |
+| `string`              | `String`     | `String`                     | UTF-8 encoded string                                                        |
+| `bytes(size)`         | `Uint8List` | `Uint8List`           | Fixed length bytes                                                          |
 
 ```dart
-// Example: All options used
 import 'package:bcs/bcs.dart';
 
-const SUI_ADDRESS_LENGTH = 32;
-final bcs = BCS(BcsConfig(
-  vectorType: "vector<T>",
-  addressLength: SUI_ADDRESS_LENGTH,
-  addressEncoding: Encoding.hex,
-  genericSeparators: ("<", ">"),
-  types: BcsConfigTypes(
-    // define schema in the initializer
-    structs: {
-      "User": {
-        "name": BCS.STRING,
-        "age": BCS.U8,
-      },
-    },
-    enums: {},
-    aliases: { "hex": BCS.HEX }
-  ),
-  withPrimitives: true
-));
+final u8 = Bcs.u8().serialize(100).toBytes();
+final u64 = Bcs.u64().serialize(BigInt.from(1000000)).toBytes();
+final u128 = Bcs.u128().serialize('100000010000001000000').toBytes();
 
-final bytes = bcs.ser("User", { "name": "Adam", "age": "30" }).base64();
-print(bytes);
+final str = Bcs.string().serialize('this is an ascii string').toBytes();
+final bytes = Bcs.bytes(4).serialize(Uint8List.fromList([1, 2, 3, 4])).toBytes();
+
+final parsedU8 = Bcs.u8().parse(u8);
+final parsedU64 = Bcs.u64().parse(u64);
+final parsedU128 = Bcs.u128().parse(u128);
+
+final parsedStr = Bcs.string().parse(str);
+final parsedBytes = Bcs.bytes(4).parse(bytes);
 ```
 
-For Sui Move there's already a pre-built configuration which can be used through the `getSuiMoveConfig()` call.
+## Compound types
+
+For most use-cases you'll want to combine primitive types into more complex types like `vectors`,
+`structs` and `enums`. The following table lists methods available for creating compound types:
+
+| Method                 | Description                                           |
+| ---------------------- | ----------------------------------------------------- |
+| `vector(T type)`      | A variable length list of values of type `T`          |
+| `fixedArray(size, T)`  | A fixed length array of values of type `T`            |
+| `option(T type)`      | A value of type `T` or `null`                         |
+| `enumeration(name, values)`   | An enum value representing one of the provided values |
+| `struct(name, fields)` | A struct with named fields of the provided types      |
+| `tuple(types)`         | A tuple of the provided types                         |
+| `map(K, V)`            | A map of keys of type `K` to values of type `V`       |
 
 ```dart
-// Example: Sui Move Config
 import 'package:bcs/bcs.dart';
 
-final bcs = BCS(getSuiMoveConfig());
+// Vectors
+final intList = Bcs.vector(Bcs.u8()).serialize([1, 2, 3, 4, 5]).toBytes();
+final stringList = Bcs.vector(Bcs.string()).serialize(['a', 'b', 'c']).toBytes();
 
-// use bcs.ser() to serialize data
-const val = [1, 2, 3, 4];
-final ser = bcs.ser(["vector", BCS.U8], val).toBytes();
+// Arrays
+final intArray = Bcs.fixedArray(4, Bcs.u8()).serialize([1, 2, 3, 4]).toBytes();
+final stringArray = Bcs.fixedArray(3, Bcs.string()).serialize(['a', 'b', 'c']).toBytes();
 
-// use bcs.de() to deserialize data
-final res = bcs.de(["vector", BCS.U8], ser);
+// Option
+final option = Bcs.option(Bcs.string()).serialize('some value').toBytes();
+final nullOption = Bcs.option(Bcs.string()).serialize(null).toBytes();
 
-assert(res.toString() == val.toString());
-```
-
-Similar configuration exists for Rust, the difference is the `Vec<T>` for vectors and `address` (being a special Move type) is not needed:
-
-```dart
-// Example: Rust Config
-import 'package:bcs/bcs.dart';
-
-final bcs = BCS(getRustConfig());
-const val = [1, 2, 3, 4];
-final ser = bcs.ser(["Vec", BCS.U8], val).toBytes();
-final res = bcs.de(["Vec", BCS.U8], ser);
-
-assert(res.toString() == val.toString());
-```
-
-## Built-in types
-
-By default, BCS will have a set of built-in type definitions and handy abstractions; all of them are supported in Move.
-
-Supported integer types are: u8, u16, u32, u64, u128 and u256. Constants `BCS.U8` to `BCS.U256` are provided by the library.
-
-| Type                        | Constant                      | Description                                            |
-| --------------------------- | ----------------------------- | ------------------------------------------------------ |
-| 'bool'                      | `BCS.BOOL`                    | Boolean type (converts to `true` / `false`)            |
-| 'u8'...'u256'               | `BCS.U8` ... `BCS.U256`       | Integer types                                          |
-| 'address'                   | `BCS.ADDRESS`                 | Address type (also used for IDs in Sui Move)           |
-| 'vector\<T\>' \| 'Vec\<T\>' | _Only custom use, requires T_ | Generic vector of any element                          |
-| 'string'                    | `BCS.STRING`                  | `vector<u8>` that (de)serializes to/from ASCII string  |
-| 'hex-string'                | `BCS.HEX`                     | `vector<u8>` that (de)serializes to/from HEX string    |
-| 'base64-string'             | `BCS.BASE64`                  | `vector<u8>` that (de)serializes to/from Base64 string |
-| 'base58-string'             | `BCS.BASE58`                  | `vector<u8>` that (de)serializes to/from Base58 string |
-
----
-
-All of the type usage examples below can be used for `bcs.de(<type>, ...)` as well.
-
-```dart
-// Example: Primitive types
-import 'package:bcs/bcs.dart';
-
-final bcs = BCS(getSuiMoveConfig());
-
-// Integers
-final _u8 = bcs.ser(BCS.U8, 100).toBytes();
-final _u64 = bcs.ser(BCS.U64, BigInt.from(1000000)).hex();
-final _u128 = bcs.ser(BCS.U128, "100000010000001000000").base64();
-
-// Other types
-final _bool = bcs.ser(BCS.BOOL, true).hex();
-final _addr = bcs
-  .ser(BCS.ADDRESS, "0000000000000000000000000000000000000001")
-  .toBytes();
-final _str = bcs.ser(BCS.STRING, "this is an ascii string").toBytes();
-
-// Vectors (vector<T>)
-final _u8_vec = bcs.ser(["vector", BCS.U8], [1, 2, 3, 4, 5, 6, 7]).toBytes();
-final _bool_vec = bcs.ser(["vector", BCS.BOOL], [true, true, false]).toBytes();
-final _str_vec = bcs
-  .ser("vector<bool>", ["string1", "string2", "string3"])
-  .toBytes();
-
-// Even vector of vector (...of vector) is an option
-final _matrix = bcs
-  .ser("vector<vector<u8>>", [
-    [0, 0, 0],
-    [1, 1, 1],
-    [2, 2, 2],
-  ])
-  .toBytes();
-print(_matrix);
-```
-
-## Ser/de and formatting
-
-To serialize and deserialize data to and from BCS there are two methods: `bcs.ser()` and `bcs.de()`.
-
-```dart
-// Example: Ser/de and Encoding
-import 'package:bcs/bcs.dart';
-
-final bcs = BCS(getSuiMoveConfig());
-
-// bcs.ser() returns an instance of BcsWriter which can be converted to bytes or a string
-BcsWriter bcsWriter = bcs.ser(BCS.STRING, "this is a string");
-
-// writer.toBytes() returns a Uint8List
-Uint8List bytes = bcsWriter.toBytes();
-
-// custom encodings can be chosen when needed (just like Buffer)
-String hex = bcsWriter.hex();
-String base64 = bcsWriter.base64();
-String base58 = bcsWriter.base58();
-
-// bcs.de() reads BCS data and returns the value
-// by default it expects data to be `Uint8List`
-final str1 = bcs.de(BCS.STRING, bytes);
-
-// alternatively, an encoding of input can be specified
-final str2 = bcs.de(BCS.STRING, hex, Encoding.hex);
-final str3 = bcs.de(BCS.STRING, base64, Encoding.base64);
-final str4 = bcs.de(BCS.STRING, base58, Encoding.base58);
-
-assert((str1 == str2) == (str3 == str4), "Result is the same");
-```
-
-## Registering new types
-
-> Tip: all registering methods start with `bcs.register*` (eg `bcs.registerStructType`).
-
-### Alias
-
-Alias is a way to create custom name for a registered type. It is helpful for fine-tuning a predefined schema without making changes deep in the tree.
-
-```dart
-// Example: Alias
-import 'package:bcs/bcs.dart';
-
-final bcs = BCS(getSuiMoveConfig());
-
-bcs.registerAlias("ObjectDigest", BCS.BASE58);
-
-// ObjectDigest is now treated as base58 string
-final _b58 = bcs.ser("ObjectDigest", "Ldp").toBytes();
-
-// we can override already existing definition to make it a HEX string
-bcs.registerAlias("ObjectDigest", BCS.HEX);
-
-final _hex = bcs.ser("ObjectDigest", "C0FFEE").toBytes();
-```
-
-### Struct
-
-Structs are the most common way of working with data; in BCS, a struct is simply a sequence of base types.
-
-```dart
-// Example: Struct
-import 'package:bcs/bcs.dart';
-
-final bcs = BCS(getSuiMoveConfig());
-
-// register a custom type (it becomes available for using)
-bcs.registerStructType("Balance", {
-  "value": BCS.U64,
+// Enum
+final MyEnum = Bcs.enumeration('MyEnum', {
+	"NoType": null,
+	"Int": Bcs.u8(),
+	"String": Bcs.string(),
+	"Array": Bcs.fixedArray(3, Bcs.u8()),
 });
 
-bcs.registerStructType("Coin", {
-  "id": BCS.ADDRESS,
-  // reference another registered type
-  "balance": "Balance",
+final noTypeEnum = MyEnum.serialize({ "NoType": null }).toBytes();
+final intEnum = MyEnum.serialize({ "Int": 100 }).toBytes();
+final stringEnum = MyEnum.serialize({ "String": 'string' }).toBytes();
+final arrayEnum = MyEnum.serialize({ "Array": [1, 2, 3] }).toBytes();
+
+// Struct
+final MyStruct = Bcs.struct('MyStruct', {
+	"id": Bcs.u8(),
+	"name": Bcs.string(),
 });
 
-// value passed into ser function has to have the same
-// structure as the definition
-final _bytes = bcs
-  .ser("Coin", {
-    "id": "0x0000000000000000000000000000000000000000000000000000000000000005",
-    "balance": {
-      "value": BigInt.from(100000000),
-    },
-  })
-  .toBytes();
-print(_bytes);
+final struct = MyStruct.serialize({ "id": 1, "name": 'name' }).toBytes();
+
+// Tuple
+final tuple = Bcs.tuple([Bcs.u8(), Bcs.string()]).serialize([1, 'name']).toBytes();
+
+// Map
+final map = Bcs
+	.map(Bcs.u8(), Bcs.string())
+	.serialize(
+		{
+			1: 'one',
+			2: 'two',
+    }).toBytes();
+
+// Parsing data back into original types
+
+// Vectors
+final parsedIntList = Bcs.vector(Bcs.u8()).parse(intList);
+final parsedStringList = Bcs.vector(Bcs.string()).parse(stringList);
+
+// Arrays
+final parsedIntArray = Bcs.fixedArray(4, Bcs.u8()).parse(intArray);
+
+// Option
+final parsedOption = Bcs.option(Bcs.string()).parse(option);
+final parsedNullOption = Bcs.option(Bcs.string()).parse(nullOption);
+
+// Enum
+final parsedNoTypeEnum = MyEnum.parse(noTypeEnum);
+final parsedIntEnum = MyEnum.parse(intEnum);
+final parsedStringEnum = MyEnum.parse(stringEnum);
+final parsedArrayEnum = MyEnum.parse(arrayEnum);
+
+// Struct
+final parsedStruct = MyStruct.parse(struct);
+
+// Tuple
+final parsedTuple = Bcs.tuple([Bcs.u8(), Bcs.string()]).parse(tuple);
+
+// Map
+final parsedMap = Bcs.map(Bcs.u8(), Bcs.string()).parse(map);
 ```
 
-## Using Generics
+## Generics
 
-To define a generic struct or an enum, pass the type parameters. It can either be done as a part of a string or as an Array. See below:
+To define a generic struct or an enum, you can define a generic typescript function helper
+
 ```dart
-// Example: Generics
 import 'package:bcs/bcs.dart';
+import 'package:bcs/bcs_type.dart';
 
-final bcs = BCS(getSuiMoveConfig());
-
-// Container -> the name of the type
-// T -> type parameter which has to be passed in `ser()` or `de()` methods
-// If you're not familiar with generics, treat them as type Templates
-bcs.registerStructType(["Container", "T"], {
-  "contents": "T"
-});
+// The T typescript generic is a placeholder for the typescript type of the generic value
+// The T argument will be the bcs type passed in when creating a concrete instance of the Container type
+BcsType Container<T>(BcsType<T, T> T) {
+	return Bcs.struct('Container<T>', {
+		"contents": T,
+	});
+}
 
 // When serializing, we have to pass the type to use for `T`
-bcs.ser(["Container", BCS.U8], {
-  "contents": 100
-}).hex();
+final bytes = Container(Bcs.u8()).serialize({ "contents": 100 }).toBytes();
 
-// Reusing the same Container type with different contents.
-// Mind that generics need to be passed as Array after the main type.
-bcs.ser(["Container", [ "vector", BCS.BOOL ]], {
-  "contents": [ true, false, true ]
-}).hex();
+// Alternatively we can save the concrete type as a variable
+// final U8Container = Container(Bcs.u8());
+// final bytes = U8Container.serialize({ "contents": 100 }).toBytes();
 
-// Using multiple generics - you can use any string for convenience and
-// readability. See how we also use array notation for a field definition.
-bcs.registerStructType(["VecMap", "Key", "Val"], {
-  "keys": ["vector", "Key"],
-  "values": ["vector", "Val"]
-});
+// Using multiple generics
+BcsType VecMap<K, V>(BcsType<K, K> K, BcsType<V, V> V) {
+	// You can use the names of the generic params in the type name to
+	return Bcs.struct(
+		// You can use the names of the generic params to give your type a more useful name
+		"VecMap<${K.name}, ${V.name}>",
+		{
+			"keys": Bcs.vector(K),
+			"values": Bcs.vector(V),
+		}
+	);
+}
 
 // To serialize VecMap, we can use:
-bcs.ser(["VecMap", BCS.STRING, BCS.STRING], {
-  "keys": [ "key1", "key2", "key3" ],
-  "values": [ "value1", "value2", "value3" ]
-});
+VecMap(Bcs.string(), Bcs.string())
+	.serialize({
+		"keys": ['key1', 'key2', 'key3'],
+		"values": ['value1', 'value2', 'value3'],
+	})
+	.toBytes();
 ```
 
-### Enum
+## Transforms
 
-In BCS enums are encoded in a special way - first byte marks the order and then the value. Enum is an object, only one property of which is used; if an invariant is empty, `null` should be used to mark it (see `Option<T>` below).
+If you the format you use in your code is different from the format expected for BCS serialization,
+you can use the `transform` API to map between the types you use in your application, and the types
+needed for serialization.
+
+The `address` type used by Move code is a good example of this. In many cases, you'll want to
+represent an address as a hex string, but the BCS serialization format for addresses is a 32 byte
+array. To handle this, you can use the `transform` API to map between the two formats:
 
 ```dart
-// Example: Enum
-import 'package:bcs/bcs.dart';
+final Address = Bcs.bytes(32).transform(
+	input: (val) => fromHEX(val.toString()),
+	output: (val) => toHEX(val),
+);
 
-final bcs = BCS(getSuiMoveConfig());
-
-bcs.registerEnumType("Option<T>", {
-  "none": null,
-  "some": "T",
-});
-
-bcs.registerEnumType("TransactionType", {
-  "single": "vector<u8>",
-  "batch": "vector<vector<u8>>",
-});
-
-// any truthy value marks empty in struct value
-final _optionNone = bcs.ser("Option<TransactionType>", {
-  "none": true,
-});
-
-// some now contains a value of type TransactionType
-final _optionTx = bcs.ser("Option<TransactionType>", {
-  "some": {
-    "single": [1, 2, 3, 4, 5, 6],
-  },
-});
-
-// same type signature but a different enum invariant - batch
-final _optionTxBatch = bcs.ser("Option<TransactionType>", {
-  "some": {
-    "batch": [
-      [1, 2, 3, 4, 5, 6],
-      [1, 2, 3, 4, 5, 6],
-    ],
-  },
-});
+final serialized = Address.serialize('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef').toBytes();
+final parsed = Address.parse(serialized);
 ```
 
-### Inline (de)serialization
+## Formats for serialized bytes
 
-Sometimes it is useful to get a value without registering a new struct. For that inline struct definition can be used.
-
-> Nested struct definitions are not yet supported, only first level properties can be used (but they can reference any type, including other struct types).
+When you call `serialize` on a `BcsType`, you will receive a `SerializedBcs` instance. This wrapper
+preserves type information for the serialized bytes, and can be used to get raw data in various
+formats.
 
 ```dart
-// Example: Inline Struct
-import 'package:bcs/bcs.dart';
+final serializedString = Bcs.string().serialize('this is a string');
 
-final bcs = BCS(getSuiMoveConfig());
+// SerializedBcs.toBytes() returns a Uint8List
+final bytes = serializedString.toBytes();
 
-// Some value we want to serialize
-final coin = {
-  "id": "0000000000000000000000000000000000000000000000000000000000000005",
-  "value": BigInt.from(1111333333222),
-};
+// You can get the serialized bytes encoded as hex, base64 or base58
+final hex = serializedString.toHex();
+final base64 = serializedString.toBase64();
+final base58 = serializedString.toBase58();
 
-// Instead of defining a type we pass struct schema as the first argument
-final coin_bytes = bcs.ser({ "id": BCS.ADDRESS, "value": BCS.U64 }, coin).toBytes();
+// To parse a BCS value from bytes, the bytes need to be a Uint8List
+final str1 = Bcs.string().parse(bytes);
 
-// Same with deserialization
-final coin_restored = bcs.de({ "id": BCS.ADDRESS, "value": BCS.U64 }, coin_bytes);
+// If your data is encoded as string, you need to convert it to Uint8List first
+final str2 = Bcs.string().parse(fromHEX(hex));
+final str3 = Bcs.string().parse(fromB64(base64));
+final str4 = Bcs.string().parse(fromB58(base58));
 
-assert(coin["id"] == coin_restored["id"], "`id` must match");
-assert(coin["value"].toString() == coin_restored["value"], "`value` must match");
+expect((str1 == str2) == (str3 == str4), true);
 ```
-
-## Aligning schema with Move
-
-Currently, main applications of this library are:
-
-1. Serializing transactions and data passed into a transaction
-2. Deserializing onchain data for performance and formatting reasons
-3. Deserializing events
-
-In this library, all of the primitive Move types are present as built-ins, however, there's a set of special types in Sui which can be simplified to a primitive.
-
-```rust
-// Definition in Move which we want to read in JS
-module me::example {
-    struct Metadata has store {
-        name: std::ascii::String,
-    }
-
-    struct ChainObject has key {
-        id: sui::object::UID,
-        owner: address,
-        meta: Metadata
-    }
-    // ...
-}
-```
-
-Definition for the above should be the following:
-
-```dart
-// Example: Simplifying UID
-import 'package:bcs/bcs.dart';
-
-final bcs = BCS(getSuiMoveConfig());
-
-// If there's a deep nested struct we can ignore Move type
-// structure and use only the value.
-bcs.registerAlias("UID", BCS.ADDRESS);
-
-// Simply follow the definition onchain
-bcs.registerStructType("Metadata", {
-  "name": BCS.STRING,
-});
-
-// Same for the main object that we intend to read
-bcs.registerStructType("ChainObject", {
-  "id": "UID",
-  "owner": BCS.ADDRESS,
-  "meta": "Metadata",
-});
-```
-
-<details><summary>See definition of the UID here</summary>
-<pre>
-struct UID has store {
-    id: ID
-}
-
-struct ID has store, copy, drop {
-bytes: address
-}
-
-// { id: { bytes: '0x.....' } }
-
-</pre>
-</details>
