@@ -25,3 +25,7 @@
 # 0.1.0
 
 * Refactor: version 2
+
+# 0.1.1
+
+* Optimize: Reading Bytes
