@@ -1,10 +1,8 @@
-
 import 'package:bcs/legacy_bcs.dart';
 import 'package:bcs/utils.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 void main() {
-
   group("BCS: Generics", () {
     test("should handle generics", () {
       final bcs = LegacyBCS(getSuiMoveConfig());
@@ -14,7 +12,7 @@ void main() {
         "some": "T",
       });
 
-      expect(bcs.de("base::Option<u8>", "00", Encoding.hex),{ "none": true });
+      expect(bcs.de("base::Option<u8>", "00", Encoding.hex), {"none": true});
     });
 
     test("should handle nested generics", () {
@@ -30,22 +28,21 @@ void main() {
         "data": "base::Option<S>",
       });
 
-      expect(bcs.de("base::Container<bool, u8>", "0000", Encoding.hex),{
+      expect(bcs.de("base::Container<bool, u8>", "0000", Encoding.hex), {
         "tag": false,
-        "data": { "none": true },
+        "data": {"none": true},
       });
 
       bcs.registerStructType("base::Wrapper", {
         "wrapped": "base::Container<bool, u8>",
       });
 
-      expect(bcs.de("base::Wrapper", "0000", Encoding.hex),{
+      expect(bcs.de("base::Wrapper", "0000", Encoding.hex), {
         "wrapped": {
           "tag": false,
-          "data": { "none": true },
+          "data": {"none": true},
         },
       });
     });
   });
-
 }

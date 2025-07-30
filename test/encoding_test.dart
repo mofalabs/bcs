@@ -1,13 +1,10 @@
-
 import 'dart:typed_data';
 
 import 'package:bcs/index.dart';
 import 'package:bcs/utils.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 void main() {
-
   group('BCS: Encodings', () {
     test('should de/ser hex, base58 and base64', () {
       expect(Bcs.u8().parse(fromB64('AA==')), 0);
@@ -32,14 +29,44 @@ void main() {
       expect(fromHEX('011'), Uint8List.fromList([0, 17]));
       expect(fromHEX('0011'), Uint8List.fromList([0, 17]));
       expect(fromHEX('0x0011'), Uint8List.fromList([0, 17]));
-      expect(fromHEX(addressLeading0), 
+      expect(
+        fromHEX(addressLeading0),
         Uint8List.fromList([
-          10, 116, 41, 215, 163, 86, 221, 152, 246, 136, 241, 26, 51, 10, 50, 224, 163, 204, 25, 8,
-          115, 74, 140, 90, 90, 249, 143, 52, 236, 147, 223, 12,
+          10,
+          116,
+          41,
+          215,
+          163,
+          86,
+          221,
+          152,
+          246,
+          136,
+          241,
+          26,
+          51,
+          10,
+          50,
+          224,
+          163,
+          204,
+          25,
+          8,
+          115,
+          74,
+          140,
+          90,
+          90,
+          249,
+          143,
+          52,
+          236,
+          147,
+          223,
+          12,
         ]),
       );
       expect(toHEX(fromHEX(addressLeading0)), "0$addressLeading0");
     });
   });
-  
 }

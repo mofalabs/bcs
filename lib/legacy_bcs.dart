@@ -8,7 +8,6 @@ import 'package:bcs/consts.dart';
 import 'package:bcs/reader.dart';
 import 'package:bcs/utils.dart';
 import 'package:bcs/writer.dart';
-import 'package:flutter/foundation.dart';
 
 const SUI_ADDRESS_LENGTH = 32;
 
@@ -26,12 +25,15 @@ mixin TypeInterface {
   BcsWriter encode(dynamic data, BcsWriterOptions? options, List<TypeName> typeParams);
   dynamic decode(Uint8List data, List<TypeName> typeParams);
 
-  BcsWriter encodeRaw(BcsWriter writer, dynamic data, List<TypeName> typeParams, Map<String, TypeName> typeMap);
+  BcsWriter encodeRaw(
+      BcsWriter writer, dynamic data, List<TypeName> typeParams, Map<String, TypeName> typeMap);
   dynamic decodeRaw(BcsReader reader, List<TypeName> typeParams, Map<String, TypeName> typeMap);
 }
 
-typedef BcsWriter EncodeCb(BcsWriter writer, dynamic data, List<TypeName> typeParams, Map<String, TypeName> typeMap);
-typedef dynamic DecodeCb(BcsReader reader, List<TypeName> typeParams, Map<String, TypeName> typeMap);
+typedef BcsWriter EncodeCb(
+    BcsWriter writer, dynamic data, List<TypeName> typeParams, Map<String, TypeName> typeMap);
+typedef dynamic DecodeCb(
+    BcsReader reader, List<TypeName> typeParams, Map<String, TypeName> typeMap);
 typedef bool ValidateCb(dynamic data);
 
 class TypeEncodeDecode with TypeInterface {
@@ -51,9 +53,9 @@ class TypeEncodeDecode with TypeInterface {
     }
 
     final bcsWriter = BcsWriter(
-      size: options?.size ?? 4096, 
-      maxSize: options?.maxSize, 
-      allocateSize: options?.allocateSize ?? 1024);
+        size: options?.size ?? 4096,
+        maxSize: options?.maxSize,
+        allocateSize: options?.allocateSize ?? 1024);
     return encodeRaw(bcsWriter, data, typeParams, typeMap);
   }
 
@@ -82,7 +84,6 @@ class TypeEncodeDecode with TypeInterface {
   dynamic decodeRaw(reader, typeParams, typeMap) {
     return decodeCb(reader, typeParams, typeMap);
   }
-
 }
 
 /// Struct type definition. Used as input format in BcsConfig.types
@@ -140,15 +141,14 @@ class BcsConfig {
   /// Whether to auto-register primitive types on launch.
   bool? withPrimitives;
 
-  BcsConfig({
-    required this.vectorType,
-    required this.addressLength,
-    this.fixedArrayType,
-    this.addressEncoding,
-    this.genericSeparators,
-    this.types,
-    this.withPrimitives
-  });
+  BcsConfig(
+      {required this.vectorType,
+      required this.addressLength,
+      this.fixedArrayType,
+      this.addressEncoding,
+      this.genericSeparators,
+      this.types,
+      this.withPrimitives});
 }
 
 /// BCS implementation for Move types and few additional built-ins.
@@ -203,10 +203,7 @@ class LegacyBCS {
 
     // Register address type under key 'address'.
     registerAddressType(
-      LegacyBCS.ADDRESS,
-      schema.addressLength,
-      schema.addressEncoding ?? Encoding.hex
-    );
+        LegacyBCS.ADDRESS, schema.addressLength, schema.addressEncoding ?? Encoding.hex);
     registerVectorType(schema.vectorType);
 
     if (schema.fixedArrayType != null) {
@@ -243,25 +240,17 @@ class LegacyBCS {
   ///
   /// ```dart
   /// bcs.registerVectorType('vector<u8>');
-  /// 
+  ///
   /// final serialized = bcs
   ///   .ser('vector<u8>', [1,2,3,4,5,6])
   ///   .toBytes();
-  /// 
+  ///
   /// expect(toHEX(serialized), '06010203040506');
   /// ```
-  BcsWriter ser(
-    dynamic type,
-    dynamic data,
-    [BcsWriterOptions? options]
-  ) {
+  BcsWriter ser(dynamic type, dynamic data, [BcsWriterOptions? options]) {
     if (type is String || type is Iterable) {
       final (name, params) = parseTypeName(type);
-      return getTypeInterface(name).encode(
-        data,
-        options,
-        params
-      );
+      return getTypeInterface(name).encode(data, options, params);
     }
 
     // Quick serialization without registering the type in the main struct.
@@ -271,9 +260,7 @@ class LegacyBCS {
       return temp.registerStructType(key, type).ser(key, data, options);
     }
 
-    throw ArgumentError(
-      "Incorrect type passed into the '.ser()' function. \n${jsonEncode(type)}"
-    );
+    throw ArgumentError("Incorrect type passed into the '.ser()' function. \n${jsonEncode(type)}");
   }
 
   /// Deserialize BCS into a Dart type.
@@ -282,11 +269,7 @@ class LegacyBCS {
   /// final deNum = bcs.de('u64', num, Encoding.hex);
   /// expect(deNum.toString(), '4294967295');
   ///```
-  dynamic de(
-    dynamic type,
-    dynamic data,
-    [Encoding? encoding]
-  ) {
+  dynamic de(dynamic type, dynamic data, [Encoding? encoding]) {
     if (data is String) {
       if (encoding != null) {
         data = decodeStr(data, encoding);
@@ -308,9 +291,7 @@ class LegacyBCS {
       return temp.registerStructType(key, type).de(key, data, encoding);
     }
 
-    throw ArgumentError(
-      "Incorrect type passed into the '.de()' function. \n${jsonDecode(type)}"
-    );
+    throw ArgumentError("Incorrect type passed into the '.de()' function. \n${jsonDecode(type)}");
   }
 
   /// Check whether a `TypeInterface` has been loaded for a `type`.
@@ -347,12 +328,8 @@ class LegacyBCS {
   /// );
   /// expect(bcs.ser('number_string', '12345').toBytes(), [5,1,2,3,4,5]);
   /// ```
-  LegacyBCS registerType(
-    TypeName typeName,
-    EncodeCb encodeCb,
-    DecodeCb decodeCb,
-    [ValidateCb? validateCb]
-  ) {
+  LegacyBCS registerType(TypeName typeName, EncodeCb encodeCb, DecodeCb decodeCb,
+      [ValidateCb? validateCb]) {
     validateCb ??= (data) => true;
 
     final (name, generics) = parseTypeName(typeName);
@@ -367,31 +344,18 @@ class LegacyBCS {
   /// bcs.registerAddressType('address', SUI_ADDRESS_LENGTH);
   /// final addr = bcs.de('address', 'c3aca510c785c7094ac99aeaa1e69d493122444df50bb8a99dfa790c654a79af', Encoding.hex);
   /// ```
-  LegacyBCS registerAddressType(
-    String name,
-    int length,
-    [Encoding encoding = Encoding.hex]
-  ) {
-
+  LegacyBCS registerAddressType(String name, int length, [Encoding encoding = Encoding.hex]) {
     switch (encoding) {
       case Encoding.base64:
-        return registerType(
-          name,
-          (writer, data, _, __) { 
-            fromB64(data).forEach((el) => writer.write8(el));
-            return writer;
-          },
-          (reader, _, __) => toB64(reader.readBytes(length))
-        );
+        return registerType(name, (writer, data, _, __) {
+          fromB64(data).forEach((el) => writer.write8(el));
+          return writer;
+        }, (reader, _, __) => toB64(reader.readBytes(length)));
       case Encoding.hex:
-        return registerType(
-          name,
-          (writer, data, _, __) { 
-            fromHEX(data).forEach((el) => writer.write8(el));
-            return writer;
-          },
-          (reader, _, __) => toHEX(reader.readBytes(length))
-        );
+        return registerType(name, (writer, data, _, __) {
+          fromHEX(data).forEach((el) => writer.write8(el));
+          return writer;
+        }, (reader, _, __) => toHEX(reader.readBytes(length)));
       default:
         throw ArgumentError("Unsupported encoding! Use either hex or base64");
     }
@@ -410,80 +374,48 @@ class LegacyBCS {
       throw ArgumentError("Vector can have only one type parameter; got " + name);
     }
 
-    return registerType(
-      typeName,
-      (writer, data, typeParams, typeMap) {
-        return writer.writeVec(data, (writer, el, _, __) {
-          if (typeParams.isEmpty) {
-            throw ArgumentError(
-              "Incorrect number of type parameters passed a to vector '$typeName'"
-            );
-          }
+    return registerType(typeName, (writer, data, typeParams, typeMap) {
+      return writer.writeVec(data, (writer, el, _, __) {
+        if (typeParams.isEmpty) {
+          throw ArgumentError("Incorrect number of type parameters passed a to vector '$typeName'");
+        }
 
-          final elementType = typeParams[0];
-          final (name, params) = parseTypeName(elementType);
-          if (hasType(name)) {
-            return getTypeInterface(name).encodeRaw(
-              writer,
-              el,
-              params,
-              typeMap
-            );
-          }
+        final elementType = typeParams[0];
+        final (name, params) = parseTypeName(elementType);
+        if (hasType(name)) {
+          return getTypeInterface(name).encodeRaw(writer, el, params, typeMap);
+        }
 
-          if (!(typeMap.containsKey(name))) {
-            throw ArgumentError(
-              "Unable to find a matching type definition for $name in vector; make sure you passed a generic"
-            );
-          }
+        if (!(typeMap.containsKey(name))) {
+          throw ArgumentError(
+              "Unable to find a matching type definition for $name in vector; make sure you passed a generic");
+        }
 
-          final (innerName, innerParams) = parseTypeName(
-            typeMap[name]
-          );
+        final (innerName, innerParams) = parseTypeName(typeMap[name]);
 
-          return getTypeInterface(innerName).encodeRaw(
-            writer,
-            el,
-            innerParams,
-            typeMap
-          );
-        });
-      },
-      (reader, typeParams, typeMap) { 
-        return reader.readVec((reader, _, __) {
-          if (typeParams.isEmpty) {
-            throw ArgumentError(
-              "Incorrect number of type parameters passed to a vector '$typeName'"
-            );
-          }
+        return getTypeInterface(innerName).encodeRaw(writer, el, innerParams, typeMap);
+      });
+    }, (reader, typeParams, typeMap) {
+      return reader.readVec((reader, _, __) {
+        if (typeParams.isEmpty) {
+          throw ArgumentError("Incorrect number of type parameters passed to a vector '$typeName'");
+        }
 
-          final elementType = typeParams[0];
-          final (name, params) = parseTypeName(elementType);
-          if (hasType(name)) {
-            return getTypeInterface(name).decodeRaw(
-              reader,
-              params,
-              typeMap
-            );
-          }
+        final elementType = typeParams[0];
+        final (name, params) = parseTypeName(elementType);
+        if (hasType(name)) {
+          return getTypeInterface(name).decodeRaw(reader, params, typeMap);
+        }
 
-          if (!(typeMap.containsKey(name))) {
-            throw ArgumentError(
-              "Unable to find a matching type definition for $name in vector; make sure you passed a generic"
-            );
-          }
+        if (!(typeMap.containsKey(name))) {
+          throw ArgumentError(
+              "Unable to find a matching type definition for $name in vector; make sure you passed a generic");
+        }
 
-          final (innerName, innerParams) = parseTypeName(
-            typeMap[name]
-          );
-          getTypeInterface(innerName).decodeRaw(
-            reader,
-            innerParams,
-            typeMap
-          );
-        });
-      }
-    );
+        final (innerName, innerParams) = parseTypeName(typeMap[name]);
+        getTypeInterface(innerName).decodeRaw(reader, innerParams, typeMap);
+      });
+    });
   }
 
   /// Register custom fixed array type inside the bcs.
@@ -499,82 +431,50 @@ class LegacyBCS {
       throw ArgumentError("Vector can have only one type parameter; got " + name);
     }
 
-    return registerType(
-      typeName,
-      (writer, data, typeParams, typeMap) {
-        int? size = typeParams.length > 1 ? int.parse(typeParams[1].toString()) : null;
-        return writer.writeFixedArray(data, size, (writer, el, _, __) {
-          if (typeParams.isEmpty) {
-            throw ArgumentError(
-              "Incorrect number of type parameters passed a to vector '$typeName'"
-            );
-          }
+    return registerType(typeName, (writer, data, typeParams, typeMap) {
+      int? size = typeParams.length > 1 ? int.parse(typeParams[1].toString()) : null;
+      return writer.writeFixedArray(data, size, (writer, el, _, __) {
+        if (typeParams.isEmpty) {
+          throw ArgumentError("Incorrect number of type parameters passed a to vector '$typeName'");
+        }
 
-          final elementType = typeParams[0];
-          final (name, params) = parseTypeName(elementType);
-          if (hasType(name)) {
-            return getTypeInterface(name).encodeRaw(
-              writer,
-              el,
-              params,
-              typeMap
-            );
-          }
+        final elementType = typeParams[0];
+        final (name, params) = parseTypeName(elementType);
+        if (hasType(name)) {
+          return getTypeInterface(name).encodeRaw(writer, el, params, typeMap);
+        }
 
-          if (!(typeMap.containsKey(name))) {
-            throw ArgumentError(
-              "Unable to find a matching type definition for $name in vector; make sure you passed a generic"
-            );
-          }
+        if (!(typeMap.containsKey(name))) {
+          throw ArgumentError(
+              "Unable to find a matching type definition for $name in vector; make sure you passed a generic");
+        }
 
-          final (innerName, innerParams) = parseTypeName(
-            typeMap[name]
-          );
+        final (innerName, innerParams) = parseTypeName(typeMap[name]);
 
-          return getTypeInterface(innerName).encodeRaw(
-            writer,
-            el,
-            innerParams,
-            typeMap
-          );
-        });
-      },
-      (reader, typeParams, typeMap) { 
-        final size = int.parse(typeParams[1].toString());
-        return reader.readFixedArray(size, (reader, _, __) {
-          if (typeParams.isEmpty) {
-            throw ArgumentError(
-              "Incorrect number of type parameters passed to a vector '$typeName'"
-            );
-          }
+        return getTypeInterface(innerName).encodeRaw(writer, el, innerParams, typeMap);
+      });
+    }, (reader, typeParams, typeMap) {
+      final size = int.parse(typeParams[1].toString());
+      return reader.readFixedArray(size, (reader, _, __) {
+        if (typeParams.isEmpty) {
+          throw ArgumentError("Incorrect number of type parameters passed to a vector '$typeName'");
+        }
 
-          final elementType = typeParams[0];
-          final (name, params) = parseTypeName(elementType);
-          if (hasType(name)) {
-            return getTypeInterface(name).decodeRaw(
-              reader,
-              params,
-              typeMap
-            );
-          }
+        final elementType = typeParams[0];
+        final (name, params) = parseTypeName(elementType);
+        if (hasType(name)) {
+          return getTypeInterface(name).decodeRaw(reader, params, typeMap);
+        }
 
-          if (!(typeMap.containsKey(name))) {
-            throw ArgumentError(
-              "Unable to find a matching type definition for $name in vector; make sure you passed a generic"
-            );
-          }
+        if (!(typeMap.containsKey(name))) {
+          throw ArgumentError(
+              "Unable to find a matching type definition for $name in vector; make sure you passed a generic");
+        }
 
-          final (innerName, innerParams) = parseTypeName(
-            typeMap[name]
-          );
-          getTypeInterface(innerName).decodeRaw(
-            reader,
-            innerParams,
-            typeMap
-          );
-        });
-      }
-    );
+        final (innerName, innerParams) = parseTypeName(typeMap[name]);
+        getTypeInterface(innerName).decodeRaw(reader, innerParams, typeMap);
+      });
+    });
   }
 
   /// Safe method to register a custom Move struct. The first argument is a name of the
@@ -616,10 +516,7 @@ class LegacyBCS {
   ///
   /// expect(test_set.toBytes(), rust_bcs_str);
   /// ```
-  LegacyBCS registerStructType(
-    TypeName typeName,
-    StructTypeDefinition fields
-  ) {
+  LegacyBCS registerStructType(TypeName typeName, StructTypeDefinition fields) {
     // When an Object is passed, we register it under a new key and store it
     // in the registered type system. This way we allow nested inline definitions.
     final fieldsTmp = <String, dynamic>{}; // fix dynamic change value type of Map
@@ -651,136 +548,91 @@ class LegacyBCS {
 
     // Make sure all the types in the fields description are already known
     // and that all the field types are strings.
-    return registerType(
-      typeName,
-      (writer, data, typeParams, typeMap) {
-        if (data == null) {
-          throw ArgumentError(
-            "Expected $structName to be an Object, got: $data"
-          );
-        }
-
-        if (typeParams.length != generics.length) {
-          throw ArgumentError(
-            "Incorrect number of generic parameters passed; expected: ${generics.length}, got: ${typeParams.length}"
-          );
-        }
-
-        if (data is! Map) {
-          data = data.toJson();
-        }
-
-        // follow the canonical order when serializing
-        for (String key in canonicalOrder) {
-          if (!data.containsKey(key)) {
-            throw Exception('Struct $structName requires field $key:${data[key]}');
-          }
-
-          // Before deserializing, read the canonical field type.
-          final (fieldType, fieldParams) = parseTypeName(
-            struct[key] as TypeName
-          );
-
-          // Check whether this type is a generic defined in this struct.
-          // If it is -> read the type parameter matching its index.
-          // If not - tread as a regular field.
-          if (!generics.contains(fieldType)) {
-            getTypeInterface(fieldType).encodeRaw(
-              writer,
-              data[key],
-              fieldParams,
-              typeMap
-            );
-          } else {
-            final paramIdx = generics.indexOf(fieldType);
-            final (name, params) = parseTypeName(typeParams[paramIdx]);
-
-            // If the type from the type parameters already exists
-            // and known -> proceed with type decoding.
-            if (hasType(name)) {
-              getTypeInterface(name).encodeRaw(
-                writer,
-                data[key],
-                params,
-                typeMap
-              );
-              continue;
-            }
-
-            // Alternatively, if it's a global generic parameter...
-            if (!(typeMap.containsKey(name))) {
-              throw ArgumentError(
-                "Unable to find a matching type definition for ${name} in ${structName}; make sure you passed a generic"
-              );
-            }
-
-            final (innerName, innerParams) = parseTypeName(
-              typeMap[name]
-            );
-            getTypeInterface(innerName).encodeRaw(
-              writer,
-              data[key],
-              innerParams,
-              typeMap
-            );
-          }
-        }
-        return writer;
-      },
-      (reader, typeParams, typeMap) {
-        if (typeParams.length != generics.length) {
-          throw ArgumentError(
-            "Incorrect number of generic parameters passed; expected: ${generics.length}, got: ${typeParams.length}"
-          );
-        }
-
-        final result = <String, dynamic>{};
-        for (String key in canonicalOrder) {
-          final(fieldName, fieldParams) = parseTypeName(
-            struct[key] as TypeName
-          );
-
-          // if it's not a generic
-          if (!generics.contains(fieldName)) {
-            result[key] = getTypeInterface(fieldName).decodeRaw(
-              reader,
-              fieldParams,
-              typeMap
-            );
-          } else {
-            final paramIdx = generics.indexOf(fieldName);
-            final (name, params) = parseTypeName(typeParams[paramIdx]);
-
-            // If the type from the type parameters already exists
-            // and known -> proceed with type decoding.
-            if (hasType(name)) {
-              result[key] = getTypeInterface(name).decodeRaw(
-                reader,
-                params,
-                typeMap
-              );
-              continue;
-            }
-
-            if (!(typeMap.containsKey(name))) {
-              throw ArgumentError(
-                "Unable to find a matching type definition for ${name} in ${structName}; make sure you passed a generic"
-              );
-            }
-
-            final (innerName, innerParams) = parseTypeName(
-              typeMap[name]
-            );
-            result[key] = getTypeInterface(innerName).decodeRaw.call(
-              reader,
-              innerParams,
-              typeMap
-            );
-          }
-        }
-        return result;
+    return registerType(typeName, (writer, data, typeParams, typeMap) {
+      if (data == null) {
+        throw ArgumentError("Expected $structName to be an Object, got: $data");
       }
-    );
+
+      if (typeParams.length != generics.length) {
+        throw ArgumentError(
+            "Incorrect number of generic parameters passed; expected: ${generics.length}, got: ${typeParams.length}");
+      }
+
+      if (data is! Map) {
+        data = data.toJson();
+      }
+
+      // follow the canonical order when serializing
+      for (String key in canonicalOrder) {
+        if (!data.containsKey(key)) {
+          throw Exception('Struct $structName requires field $key:${data[key]}');
+        }
+
+        // Before deserializing, read the canonical field type.
+        final (fieldType, fieldParams) = parseTypeName(struct[key] as TypeName);
+
+        // Check whether this type is a generic defined in this struct.
+        // If it is -> read the type parameter matching its index.
+        // If not - tread as a regular field.
+        if (!generics.contains(fieldType)) {
+          getTypeInterface(fieldType).encodeRaw(writer, data[key], fieldParams, typeMap);
+        } else {
+          final paramIdx = generics.indexOf(fieldType);
+          final (name, params) = parseTypeName(typeParams[paramIdx]);
+
+          // If the type from the type parameters already exists
+          // and known -> proceed with type decoding.
+          if (hasType(name)) {
+            getTypeInterface(name).encodeRaw(writer, data[key], params, typeMap);
+            continue;
+          }
+
+          // Alternatively, if it's a global generic parameter...
+          if (!(typeMap.containsKey(name))) {
+            throw ArgumentError(
+                "Unable to find a matching type definition for ${name} in ${structName}; make sure you passed a generic");
+          }
+
+          final (innerName, innerParams) = parseTypeName(typeMap[name]);
+          getTypeInterface(innerName).encodeRaw(writer, data[key], innerParams, typeMap);
+        }
+      }
+      return writer;
+    }, (reader, typeParams, typeMap) {
+      if (typeParams.length != generics.length) {
+        throw ArgumentError(
+            "Incorrect number of generic parameters passed; expected: ${generics.length}, got: ${typeParams.length}");
+      }
+
+      final result = <String, dynamic>{};
+      for (String key in canonicalOrder) {
+        final (fieldName, fieldParams) = parseTypeName(struct[key] as TypeName);
+
+        // if it's not a generic
+        if (!generics.contains(fieldName)) {
+          result[key] = getTypeInterface(fieldName).decodeRaw(reader, fieldParams, typeMap);
+        } else {
+          final paramIdx = generics.indexOf(fieldName);
+          final (name, params) = parseTypeName(typeParams[paramIdx]);
+
+          // If the type from the type parameters already exists
+          // and known -> proceed with type decoding.
+          if (hasType(name)) {
+            result[key] = getTypeInterface(name).decodeRaw(reader, params, typeMap);
+            continue;
+          }
+
+          if (!(typeMap.containsKey(name))) {
+            throw ArgumentError(
+                "Unable to find a matching type definition for ${name} in ${structName}; make sure you passed a generic");
+          }
+
+          final (innerName, innerParams) = parseTypeName(typeMap[name]);
+          result[key] = getTypeInterface(innerName).decodeRaw.call(reader, innerParams, typeMap);
+        }
+      }
+      return result;
+    });
   }
 
   /// Safe method to register custom enum type where each invariant holds the value of another type.
@@ -799,25 +651,17 @@ class LegacyBCS {
   /// bcs.ser('MyEnum', { 'single': { 'value': 10000000 } }).toBytes();
   /// bcs.ser('MyEnum', { 'multi': [ { 'value': 1 }, { 'value': 2 } ] });
   /// ```
-  LegacyBCS registerEnumType(
-    TypeName typeName,
-    EnumTypeDefinition variants
-  ) {
+  LegacyBCS registerEnumType(TypeName typeName, EnumTypeDefinition variants) {
     // When an Object is passed, we register it under a new key and store it
     // in the registered type system. This way we allow nested inline definitions.
     for (final key in variants.keys) {
       final internalName = tempKey();
       final value = variants[key];
 
-      if (
-        value != null &&
-        (value is! Iterable) &&
-        value is! String
-      ) {
+      if (value != null && (value is! Iterable) && value is! String) {
         variants[key] = internalName;
         registerStructType(internalName, value as StructTypeDefinition);
       }
-
     }
 
     // Make sure the order doesn't get changed
@@ -829,94 +673,68 @@ class LegacyBCS {
     // Parse type parameters in advance to know the index of each generic parameter.
     final (name, canonicalTypeParams) = parseTypeName(typeName);
 
-    return registerType(
-      typeName,
-      (writer, data, typeParams, typeMap) {
-        if (data == null) {
-          throw ArgumentError(
-            'Unable to write enum "$name", missing data.\nReceived: "$data'
-          );
-        }
-        if (data is! Map) {
-          throw ArgumentError(
-            'Incorrect data passed into enum "$name", expected object with properties: "${canonicalOrder.join(
-              " | "
-            )}".\nReceived: "${jsonEncode(data)}"'
-          );
-        }
-        
-        if (data.isEmpty) {
-          throw ArgumentError(
-            'Empty object passed as invariant of the enum "$name"'
-          );
-        }
-
-        final key = data.keys.first;
-        final orderByte = canonicalOrder.toList().indexOf(key);
-        if (orderByte == -1) {
-          throw ArgumentError(
-            'Unknown invariant of the enum "$name", allowed values: "${canonicalOrder.join(
-              " | "
-            )}"; received "$key"'
-          );
-        }
-        final invariant = canonicalOrder.toList()[orderByte];
-        final invariantType = struct[invariant];
-
-        // write order byte
-        writer.write8(orderByte);
-
-        // When { "key": null } - empty value for the invariant.
-        if (invariantType == null) {
-          return writer;
-        }
-
-        final paramIndex = canonicalTypeParams.indexOf(invariantType);
-        final typeOrParam =
-          paramIndex == -1 ? invariantType : typeParams[paramIndex];
-
-        {
-          final (name, params) = parseTypeName(typeOrParam);
-          return getTypeInterface(name).encodeRaw(
-            writer,
-            data[key],
-            params,
-            typeMap
-          );
-        }
-      },
-      (reader, typeParams, typeMap) {
-        final orderByte = reader.readULEB();
-        final invariant = canonicalOrder.toList()[orderByte];
-        final invariantType = struct[invariant];
-
-        if (orderByte == -1) {
-          throw ArgumentError(
-            'Decoding type mismatch, expected enum "$name" invariant index, received "$orderByte"'
-          );
-        }
-
-        // Encode an empty value for the enum.
-        if (invariantType == null) {
-          return { invariant: true };
-        }
-
-        final paramIndex = canonicalTypeParams.indexOf(invariantType);
-        final typeOrParam =
-          paramIndex == -1 ? invariantType : typeParams[paramIndex];
-
-        {
-          final (name, params) = parseTypeName(typeOrParam);
-          return {
-            invariant: getTypeInterface(name).decodeRaw(
-              reader,
-              params,
-              typeMap
-            ),
-          };
-        }
+    return registerType(typeName, (writer, data, typeParams, typeMap) {
+      if (data == null) {
+        throw ArgumentError('Unable to write enum "$name", missing data.\nReceived: "$data');
       }
-    );
+      if (data is! Map) {
+        throw ArgumentError(
+            'Incorrect data passed into enum "$name", expected object with properties: "${canonicalOrder.join(" | ")}".\nReceived: "${jsonEncode(data)}"');
+      }
+
+      if (data.isEmpty) {
+        throw ArgumentError('Empty object passed as invariant of the enum "$name"');
+      }
+
+      final key = data.keys.first;
+      final orderByte = canonicalOrder.toList().indexOf(key);
+      if (orderByte == -1) {
+        throw ArgumentError(
+            'Unknown invariant of the enum "$name", allowed values: "${canonicalOrder.join(" | ")}"; received "$key"');
+      }
+      final invariant = canonicalOrder.toList()[orderByte];
+      final invariantType = struct[invariant];
+
+      // write order byte
+      writer.write8(orderByte);
+
+      // When { "key": null } - empty value for the invariant.
+      if (invariantType == null) {
+        return writer;
+      }
+
+      final paramIndex = canonicalTypeParams.indexOf(invariantType);
+      final typeOrParam = paramIndex == -1 ? invariantType : typeParams[paramIndex];
+
+      {
+        final (name, params) = parseTypeName(typeOrParam);
+        return getTypeInterface(name).encodeRaw(writer, data[key], params, typeMap);
+      }
+    }, (reader, typeParams, typeMap) {
+      final orderByte = reader.readULEB();
+      final invariant = canonicalOrder.toList()[orderByte];
+      final invariantType = struct[invariant];
+
+      if (orderByte == -1) {
+        throw ArgumentError(
+            'Decoding type mismatch, expected enum "$name" invariant index, received "$orderByte"');
+      }
+
+      // Encode an empty value for the enum.
+      if (invariantType == null) {
+        return {invariant: true};
+      }
+
+      final paramIndex = canonicalTypeParams.indexOf(invariantType);
+      final typeOrParam = paramIndex == -1 ? invariantType : typeParams[paramIndex];
+
+      {
+        final (name, params) = parseTypeName(typeOrParam);
+        return {
+          invariant: getTypeInterface(name).decodeRaw(reader, params, typeMap),
+        };
+      }
+    });
   }
 
   /// Get a set of encoders/decoders for specific type.
@@ -931,10 +749,7 @@ class LegacyBCS {
       while (typeInterface is String) {
         if (chain.contains(typeInterface)) {
           throw ArgumentError(
-            'Recursive definition found: ${chain.join(
-              " -> "
-            )} -> $typeInterface'
-          );
+              'Recursive definition found: ${chain.join(" -> ")} -> $typeInterface');
         }
         chain.add(typeInterface);
         typeInterface = types[typeInterface];
@@ -981,16 +796,14 @@ class LegacyBCS {
 
     final typeName = name.substring(0, l_bound);
     final params = name
-      .substring(l_bound + 1, name.length - r_bound - 1)
-      .split(",")
-      .map((e) => e.trim())
-      .toList();
+        .substring(l_bound + 1, name.length - r_bound - 1)
+        .split(",")
+        .map((e) => e.trim())
+        .toList();
 
     return (typeName, params);
   }
 }
-
-
 
 /// Unify argument types by converting them to BigInt.
 BigInt toBN(dynamic number) {
@@ -1009,149 +822,93 @@ BigInt toBN(dynamic number) {
 /// Is called in the `BCS` constructor automatically but can
 /// be ignored if the `withPrimitives` argument is not set.
 void registerPrimitives(LegacyBCS bcs) {
-  bcs.registerType(
-    LegacyBCS.U8,
-    (writer, data, _, __) {
-      return writer.write8(int.parse(data.toString()));
-    },
-    (reader, _, __) {
-      return reader.read8();
-    },
-    (u8) => toBN(u8) <= BigInt.from(MAX_U8_NUMBER)
-  );
+  bcs.registerType(LegacyBCS.U8, (writer, data, _, __) {
+    return writer.write8(int.parse(data.toString()));
+  }, (reader, _, __) {
+    return reader.read8();
+  }, (u8) => toBN(u8) <= BigInt.from(MAX_U8_NUMBER));
+
+  bcs.registerType(LegacyBCS.U16, (writer, data, _, __) {
+    return writer.write16(int.parse(data.toString()));
+  }, (reader, _, __) {
+    return reader.read16();
+  }, (u16) => toBN(u16) <= BigInt.from(MAX_U16_NUMBER));
+
+  bcs.registerType(LegacyBCS.U32, (writer, data, _, __) {
+    return writer.write32(int.parse(data.toString()));
+  }, (reader, _, __) {
+    return reader.read32();
+  }, (u32) => toBN(u32) <= BigInt.from(MAX_U32_NUMBER));
+
+  bcs.registerType(LegacyBCS.U64, (writer, data, _, __) {
+    return writer.write64(BigInt.parse(data.toString()));
+  }, (reader, _, __) {
+    return reader.read64().toString();
+  });
+
+  bcs.registerType(LegacyBCS.U128, (writer, data, _, __) {
+    return writer.write128(BigInt.parse(data.toString()));
+  }, (reader, _, __) {
+    return reader.read128().toString();
+  });
+
+  bcs.registerType(LegacyBCS.U256, (writer, data, _, __) {
+    return writer.write256(BigInt.parse(data.toString()));
+  }, (reader, _, __) {
+    return reader.read256().toString();
+  });
+
+  bcs.registerType(LegacyBCS.BOOL, (writer, data, _, __) {
+    return writer.write8(data == true ? 1 : 0);
+  }, (reader, _, __) {
+    return reader.read8().toString() == "1";
+  });
 
   bcs.registerType(
-    LegacyBCS.U16,
-    (writer, data, _, __) {
-      return writer.write16(int.parse(data.toString()));
-    },
-    (reader, _, __) {
-      return reader.read16();
-    },
-    (u16) => toBN(u16) <= BigInt.from(MAX_U16_NUMBER)
-  );
+      LegacyBCS.STRING,
+      (writer, data, _, __) => writer.writeVec(data.split(""), (writer, el, a, b) {
+            writer.write8(utf8.encode(el)[0]);
+          }), (reader, _, __) {
+    final data =
+        reader.readVec((reader, a, b) => reader.read8()).map<int>((item) => item.toInt()).toList();
+    return utf8.decode(data);
+  }, (_str) => true);
 
-  bcs.registerType(
-    LegacyBCS.U32,
-    (writer, data, _, __) {
-      return writer.write32(int.parse(data.toString()));
-    },
-    (reader, _, __) {
-      return reader.read32();
-    },
-    (u32) => toBN(u32) <= BigInt.from(MAX_U32_NUMBER)
-  );
+  bcs.registerType(LegacyBCS.HEX, (writer, data, _, __) {
+    return writer.writeVec(fromHEX(data), (writer, el, _, __) => writer.write8(el));
+  }, (reader, _, __) {
+    final bytes = reader.readVec((reader, _, __) => reader.read8());
+    return toHEX(Uint8List.fromList(bytes.cast<int>()));
+  });
 
-  bcs.registerType(
-    LegacyBCS.U64,
-    (writer, data, _, __) {
-      return writer.write64(BigInt.parse(data.toString()));
-    },
-    (reader, _, __) {
-      return reader.read64().toString();
-    }
-  );
+  bcs.registerType(LegacyBCS.BASE58, (writer, data, _, __) {
+    return writer.writeVec(fromB58(data), (writer, el, _, __) => writer.write8(el));
+  }, (reader, _, __) {
+    final bytes = reader.readVec((reader, _, __) => reader.read8());
+    return toB58(Uint8List.fromList(bytes.cast<int>()));
+  });
 
-  bcs.registerType(
-    LegacyBCS.U128,
-    (writer, data, _, __) {
-      return writer.write128(BigInt.parse(data.toString()));
-    },
-    (reader, _, __) {
-      return reader.read128().toString();
-    }
-  );
-
-  bcs.registerType(
-    LegacyBCS.U256,
-    (writer, data, _, __) {
-      return writer.write256(BigInt.parse(data.toString()));
-    },
-    (reader, _, __) {
-      return reader.read256().toString();
-    }
-  );
-
-  bcs.registerType(
-    LegacyBCS.BOOL,
-    (writer, data, _, __) {
-      return writer.write8(data == true ? 1 : 0);
-    },
-    (reader, _, __) {
-      return reader.read8().toString() == "1";
-    }
-  );
-
-  bcs.registerType(
-    LegacyBCS.STRING,
-    (writer, data, _, __) =>
-      writer.writeVec(data.split(""), (writer, el, a, b) {
-        writer.write8(utf8.encode(el)[0]);
-      }),
-    (reader, _, __) {
-      final data = reader
-        .readVec((reader, a, b) => reader.read8())
-        .map<int>((item) => item.toInt()).toList();
-      return utf8.decode(data);
-    },
-    (_str) => true
-  );
-
-  bcs.registerType(
-    LegacyBCS.HEX,
-    (writer, data, _, __) {
-      return writer.writeVec(fromHEX(data), (writer, el, _, __) =>
-        writer.write8(el)
-      );
-    },
-    (reader, _, __) {
-      final bytes = reader.readVec((reader, _, __) => reader.read8());
-      return toHEX(Uint8List.fromList(bytes.cast<int>()));
-    }
-  );
-
-  bcs.registerType(
-    LegacyBCS.BASE58,
-    (writer, data, _, __) {
-      return writer.writeVec(fromB58(data), (writer, el, _, __) =>
-        writer.write8(el)
-      );
-    },
-    (reader, _, __) {
-      final bytes = reader.readVec((reader, _, __) => reader.read8());
-      return toB58(Uint8List.fromList(bytes.cast<int>()));
-    }
-  );
-
-  bcs.registerType(
-    LegacyBCS.BASE64,
-    (writer, data, _, __) {
-      return writer.writeVec(fromB64(data), (writer, el, _, __) =>
-        writer.write8(el)
-      );
-    },
-    (reader, _, __) {
-      final bytes = reader.readVec((reader, _, __) => reader.read8());
-      return toB64(Uint8List.fromList(bytes.cast<int>()));
-    }
-  );
+  bcs.registerType(LegacyBCS.BASE64, (writer, data, _, __) {
+    return writer.writeVec(fromB64(data), (writer, el, _, __) => writer.write8(el));
+  }, (reader, _, __) {
+    final bytes = reader.readVec((reader, _, __) => reader.read8());
+    return toB64(Uint8List.fromList(bytes.cast<int>()));
+  });
 }
 
 BcsConfig getRustConfig() {
   return BcsConfig(
-    vectorType: "Vec",
-    addressLength: SUI_ADDRESS_LENGTH,
-    genericSeparators: ("<", ">"),
-    addressEncoding: Encoding.hex
-  );
+      vectorType: "Vec",
+      addressLength: SUI_ADDRESS_LENGTH,
+      genericSeparators: ("<", ">"),
+      addressEncoding: Encoding.hex);
 }
 
 BcsConfig getSuiMoveConfig() {
   return BcsConfig(
-    vectorType: LegacyBCS.VECTOR,
-    fixedArrayType: LegacyBCS.FixedArray,
-    addressLength: SUI_ADDRESS_LENGTH,
-    genericSeparators: ("<", ">"),
-    addressEncoding: Encoding.hex
-  );
+      vectorType: LegacyBCS.VECTOR,
+      fixedArrayType: LegacyBCS.FixedArray,
+      addressLength: SUI_ADDRESS_LENGTH,
+      genericSeparators: ("<", ">"),
+      addressEncoding: Encoding.hex);
 }

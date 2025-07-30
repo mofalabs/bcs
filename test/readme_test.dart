@@ -1,8 +1,6 @@
-
 import 'package:bcs/legacy_bcs.dart';
 import 'package:bcs/utils.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 void main() {
   group("BCS: README Examples", () {
@@ -21,42 +19,39 @@ void main() {
       });
 
       // deserialization: BCS bytes into Coin
-      final bytes = bcs
-        .ser("Coin", {
-          "id": "0000000000000000000000000000000000000000000000000000000000000001",
-          "value": BigInt.from(1000000),
-        })
-        .toBytes();
-    
+      final bytes = bcs.ser("Coin", {
+        "id": "0000000000000000000000000000000000000000000000000000000000000001",
+        "value": BigInt.from(1000000),
+      }).toBytes();
+
       final coin = bcs.de("Coin", bytes);
 
       // serialization: Object into bytes
-      final data = bcs.ser("Option<Coin>", { "some": coin }).hex();
-      debugPrint(data);
+      final data = bcs.ser("Option<Coin>", {"some": coin}).hex();
+      print(data);
     });
 
     test("Example: All options used", () {
       final bcs = LegacyBCS(BcsConfig(
-        vectorType: "vector<T>",
-        addressLength: SUI_ADDRESS_LENGTH,
-        addressEncoding: Encoding.hex,
-        genericSeparators: ("<", ">"),
-        types: BcsConfigTypes(
-          // define schema in the intestializer
-          structs: {
-            "User": {
-              "name": LegacyBCS.STRING,
-              "age": LegacyBCS.U8,
+          vectorType: "vector<T>",
+          addressLength: SUI_ADDRESS_LENGTH,
+          addressEncoding: Encoding.hex,
+          genericSeparators: ("<", ">"),
+          types: BcsConfigTypes(
+            // define schema in the intestializer
+            structs: {
+              "User": {
+                "name": LegacyBCS.STRING,
+                "age": LegacyBCS.U8,
+              },
             },
-          },
-          enums: {},
-          aliases: { "hex": LegacyBCS.HEX },
-        ),
-        withPrimitives: true
-      ));
+            enums: {},
+            aliases: {"hex": LegacyBCS.HEX},
+          ),
+          withPrimitives: true));
 
-      final bytes = bcs.ser("User", { "name": "Adam", "age": "30" }).base64();
-      debugPrint(bytes);
+      final bytes = bcs.ser("User", {"name": "Adam", "age": "30"}).base64();
+      print(bytes);
     });
 
     test("intestialization", () {
@@ -91,26 +86,21 @@ void main() {
 
       // Other types
       final _bool = bcs.ser(LegacyBCS.BOOL, true).hex();
-      final _addr = bcs
-        .ser(LegacyBCS.ADDRESS, "0000000000000000000000000000000000000001")
-        .toBytes();
+      final _addr =
+          bcs.ser(LegacyBCS.ADDRESS, "0000000000000000000000000000000000000001").toBytes();
       final _str = bcs.ser(LegacyBCS.STRING, "this is an ascii string").toBytes();
 
       // Vectors (vector<T>)
       final _u8_vec = bcs.ser("vector<u8>", [1, 2, 3, 4, 5, 6, 7]).toBytes();
       final _bool_vec = bcs.ser("vector<bool>", [true, true, false]).toBytes();
-      final _str_vec = bcs
-        .ser("vector<bool>", ["string1", "string2", "string3"])
-        .toBytes();
+      final _str_vec = bcs.ser("vector<bool>", ["string1", "string2", "string3"]).toBytes();
 
       // Even vector of vector (...of vector) is an option
-      final _matrix = bcs
-        .ser("vector<vector<u8>>", [
-          [0, 0, 0],
-          [1, 1, 1],
-          [2, 2, 2],
-        ])
-        .toBytes();
+      final _matrix = bcs.ser("vector<vector<u8>>", [
+        [0, 0, 0],
+        [1, 1, 1],
+        [2, 2, 2],
+      ]).toBytes();
     });
 
     test("Example: Ser/de and Encoding", () {
@@ -170,14 +160,12 @@ void main() {
 
       // value passed into ser function has to have the same
       // structure as the defintestion
-      final _bytes = bcs
-        .ser("Coin", {
-          "id": "0x0000000000000000000000000000000000000000000000000000000000000005",
-          "balance": {
-            "value": BigInt.from(100000000),
-          },
-        })
-        .toBytes();
+      final _bytes = bcs.ser("Coin", {
+        "id": "0x0000000000000000000000000000000000000000000000000000000000000005",
+        "balance": {
+          "value": BigInt.from(100000000),
+        },
+      }).toBytes();
     });
 
     test("Example: Generics", () {
@@ -186,34 +174,47 @@ void main() {
       // Container -> the name of the type
       // T -> type parameter which has to be passed in `ser()` or `de()` methods
       // If you're not familiar wtesth generics, treat them as type Templates
-      bcs.registerStructType(["Container", "T"], {
+      bcs.registerStructType([
+        "Container",
+        "T"
+      ], {
         "contents": "T",
       });
 
       // When serializing, we have to pass the type to use for `T`
-      bcs
-        .ser(["Container", LegacyBCS.U8], {
-          "contents": 100,
-        })
-        .hex();
+      bcs.ser([
+        "Container",
+        LegacyBCS.U8
+      ], {
+        "contents": 100,
+      }).hex();
 
       // Reusing the same Container type wtesth different contents.
       // Mind that generics need to be passed as Array after the main type.
-      bcs
-        .ser(["Container", ["vector", LegacyBCS.BOOL]], {
-          "contents": [true, false, true],
-        })
-        .hex();
+      bcs.ser([
+        "Container",
+        ["vector", LegacyBCS.BOOL]
+      ], {
+        "contents": [true, false, true],
+      }).hex();
 
       // Using multiple generics - you can use any string for convenience and
       // readabiltesty. See how we also use array notation for a field defintestion.
-      bcs.registerStructType(["VecMap", "Key", "Val"], {
+      bcs.registerStructType([
+        "VecMap",
+        "Key",
+        "Val"
+      ], {
         "keys": ["vector", "Key"],
         "values": ["vector", "Val"],
       });
 
       // To serialize VecMap, we can use:
-      bcs.ser(["VecMap", LegacyBCS.STRING, LegacyBCS.STRING], {
+      bcs.ser([
+        "VecMap",
+        LegacyBCS.STRING,
+        LegacyBCS.STRING
+      ], {
         "keys": ["key1", "key2", "key3"],
         "values": ["value1", "value2", "value3"],
       });
@@ -265,12 +266,10 @@ void main() {
       };
 
       // Instead of defining a type we pass struct schema as the first argument
-      final coin_bytes = bcs
-        .ser({ "id": LegacyBCS.ADDRESS, "value": LegacyBCS.U64 }, coin)
-        .toBytes();
+      final coin_bytes = bcs.ser({"id": LegacyBCS.ADDRESS, "value": LegacyBCS.U64}, coin).toBytes();
 
       // Same wtesth deserialization
-      final coin_restored = bcs.de({ "id": LegacyBCS.ADDRESS, "value": LegacyBCS.U64 }, coin_bytes);
+      final coin_restored = bcs.de({"id": LegacyBCS.ADDRESS, "value": LegacyBCS.U64}, coin_bytes);
 
       expect(coin["id"], coin_restored["id"]);
       expect(coin["value"], BigInt.parse(coin_restored["value"]));
