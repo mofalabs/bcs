@@ -29,3 +29,6 @@
 # 0.1.1
 
 * Optimize: Reading Bytes
+
+# 0.1.2
+* Feat: Replace flutter_test with test package
