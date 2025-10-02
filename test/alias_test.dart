@@ -1,11 +1,7 @@
-
 import 'package:bcs/bcs.dart';
-import 'package:bcs/legacy_bcs.dart';
-import 'package:bcs/utils.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 void main() {
-  
   dynamic serde(LegacyBCS bcs, dynamic type, dynamic data) {
     final ser = bcs.ser(type, data).hex();
     final de = bcs.de(type, ser, Encoding.hex);
@@ -23,10 +19,10 @@ void main() {
 
     test("should support recursive definitions in structs", () {
       final bcs = LegacyBCS(getSuiMoveConfig());
-      const value = { "name": "Billy" };
+      const value = {"name": "Billy"};
 
       bcs.registerAlias("UserName", LegacyBCS.STRING);
-      expect(serde(bcs, { "name": "UserName" }, value), value);
+      expect(serde(bcs, {"name": "UserName"}, value), value);
     });
 
     test("should spot recursive definitions", () {
@@ -46,5 +42,4 @@ void main() {
       expect(error is ArgumentError, true);
     });
   });
-
 }

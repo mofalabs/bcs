@@ -1,11 +1,8 @@
-
-
 import 'package:bcs/legacy_bcs.dart';
 import 'package:bcs/utils.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 void main() {
-
   dynamic serde(LegacyBCS bcs, dynamic type, dynamic data) {
     final ser = bcs.ser(type, data).hex();
     final de = bcs.de(type, ser, Encoding.hex);
@@ -15,7 +12,9 @@ void main() {
   group("BCS: Nested temp object", () {
     test("should support object as a type", () {
       final bcs = LegacyBCS(getSuiMoveConfig());
-      const value = { "name": { "boop": "beep", "beep": "100" } };
+      const value = {
+        "name": {"boop": "beep", "beep": "100"}
+      };
 
       bcs.registerStructType("Beep", {
         "name": {
@@ -81,5 +80,4 @@ void main() {
       expect(serde(bcs, "Option", value), value);
     });
   });
-
 }

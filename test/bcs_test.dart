@@ -1,9 +1,8 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 import 'package:bcs/bcs.dart';
 
 void main() {
-
   group('BCS: Primitives', () {
     test('should support growing size', () {
       final Coin = Bcs.struct('Coin', {
@@ -38,8 +37,8 @@ void main() {
         "is_locked": false,
       };
 
-      expect(() => Coin.serialize(expected, options: BcsWriterOptions(size: 1, maxSize: 1)), throwsArgumentError);
+      expect(() => Coin.serialize(expected, options: BcsWriterOptions(size: 1, maxSize: 1)),
+          throwsArgumentError);
     });
   });
-
 }
